@@ -6,6 +6,7 @@ pluginManagement {
 		}
 		mavenCentral()
 		gradlePluginPortal()
+		maven { url = "https://maven.kikugie.dev/releases"}
 	}
 }
 
