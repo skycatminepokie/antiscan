@@ -3,15 +3,14 @@
 	"id": "ip-checker",
 	"version": "${version}",
 	"name": "IP Checker",
-	"description": "This is an example description! Tell everyone what your mod is about!",
+	"description": "Check IPs against AbuseIPDB before admitting people to your server.",
 	"authors": [
-		"Me!"
+		"skycatminepokie"
 	],
 	"contact": {
-		"homepage": "https://fabricmc.net/",
-		"sources": "https://github.com/FabricMC/fabric-example-mod"
+		"sources": "https://github.com/skycatminepokie/ip-checker"
 	},
-	"license": "CC0-1.0",
+	"license": "MIT",
 	"icon": "assets/ip-checker/icon.png",
 	"environment": "*",
 	"entrypoints": {
@@ -37,8 +36,5 @@
 		"minecraft": "~1.21.5",
 		"java": ">=21",
 		"fabric-api": "*"
-	},
-	"suggests": {
-		"another-mod": "*"
 	}
 }
