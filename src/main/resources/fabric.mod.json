@@ -1,0 +1,44 @@
+{
+	"schemaVersion": 1,
+	"id": "ip-checker",
+	"version": "${version}",
+	"name": "IP Checker",
+	"description": "This is an example description! Tell everyone what your mod is about!",
+	"authors": [
+		"Me!"
+	],
+	"contact": {
+		"homepage": "https://fabricmc.net/",
+		"sources": "https://github.com/FabricMC/fabric-example-mod"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/ip-checker/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.skycatdev.ipchecker.IPChecker"
+		],
+		"client": [
+			"com.skycatdev.ipchecker.IPCheckerClient"
+		],
+		"fabric-datagen": [
+			"com.skycatdev.ipchecker.IPCheckerDataGenerator"
+		]
+	},
+	"mixins": [
+		"ip-checker.mixins.json",
+		{
+			"config": "ip-checker.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.12",
+		"minecraft": "~1.21.5",
+		"java": ">=21",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
