@@ -1,33 +1,33 @@
 {
 	"schemaVersion": 1,
-	"id": "ip-checker",
+	"id": "antiscan",
 	"version": "${version}",
-	"name": "IP Checker",
+	"name": "AntiScan",
 	"description": "Check IPs against AbuseIPDB before admitting people to your server.",
 	"authors": [
 		"skycatminepokie"
 	],
 	"contact": {
-		"sources": "https://github.com/skycatminepokie/ip-checker"
+		"sources": "https://github.com/skycatminepokie/antiscan"
 	},
 	"license": "MIT",
-	"icon": "assets/ip-checker/icon.png",
+	"icon": "assets/antiscan/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.skycatdev.ipchecker.IPChecker"
+			"com.skycatdev.antiscan.AntiScan"
 		],
 		"client": [
-			"com.skycatdev.ipchecker.IPCheckerClient"
+			"com.skycatdev.antiscan.AntiScanClient"
 		],
 		"fabric-datagen": [
-			"com.skycatdev.ipchecker.IPCheckerDataGenerator"
+			"com.skycatdev.antiscan.AntiScanDataGenerator"
 		]
 	},
 	"mixins": [
-		"ip-checker.mixins.json",
+		"antiscan.mixins.json",
 		{
-			"config": "ip-checker.client.mixins.json",
+			"config": "antiscan.client.mixins.json",
 			"environment": "client"
 		}
 	],

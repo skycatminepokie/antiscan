@@ -23,7 +23,7 @@ loom {
 	splitEnvironmentSourceSets()
 
 	mods {
-		"ip-checker" {
+		"antiscan" {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}

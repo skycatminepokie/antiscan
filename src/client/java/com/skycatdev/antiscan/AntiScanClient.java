@@ -1,8 +1,8 @@
-package com.skycatdev.ipchecker;
+package com.skycatdev.antiscan;
 
 import net.fabricmc.api.ClientModInitializer;
 
-public class IPCheckerClient implements ClientModInitializer {
+public class AntiScanClient implements ClientModInitializer {
 	@Override
 	public void onInitializeClient() {
 		// This entrypoint is suitable for setting up client-specific logic, such as rendering.
