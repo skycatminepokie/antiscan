@@ -15,7 +15,6 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
@@ -50,13 +49,13 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(new HashSet<>(), 0, null);
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null);
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(new HashSet<>(), 0, null);
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null);
         }
     }
 
