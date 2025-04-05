@@ -11,8 +11,15 @@ import java.util.concurrent.TimeUnit;
 public class AntiScan implements ModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final File IP_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("antiscan-ips.txt").toFile();
+    public static final File IP_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan.txt").toFile();
     public static final IpChecker IP_CHECKER = IpChecker.loadOrCreate(IP_CHECKER_FILE);
+
+    static {
+        if (!IP_CHECKER_FILE.getParentFile().exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            IP_CHECKER_FILE.getParentFile().mkdirs();
+        }
+    }
 
     @Override
     public void onInitialize() {
