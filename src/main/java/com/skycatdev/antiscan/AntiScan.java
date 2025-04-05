@@ -14,6 +14,6 @@ public class AntiScan implements ModInitializer {
 
     @Override
     public void onInitialize() {
-        new Thread(() -> IP_CHECKER.update("MYAPIKEY", TimeUnit.HOURS.toMillis(5))).start();
+        IP_CHECKER.update(TimeUnit.HOURS.toMillis(5));
     }
 }

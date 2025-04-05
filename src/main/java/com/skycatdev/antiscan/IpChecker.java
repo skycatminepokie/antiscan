@@ -7,6 +7,7 @@ import com.google.gson.stream.JsonWriter;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileReader;
@@ -18,6 +19,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
 
@@ -28,23 +30,17 @@ public class IpChecker {
                 set.addAll(list);
                 return set;
             }, set -> set.stream().toList()).fieldOf("blacklist").forGetter(IpChecker::getBlacklistCache),
-            Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated)
-    ).apply(instance, IpChecker::new));
-
-    protected long lastUpdated;
+            Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
+            Codec.STRING.optionalFieldOf("apiKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey()))
+    ).apply(instance, (blacklist, lastUpdated, apiKey) -> new IpChecker(blacklist, lastUpdated, apiKey.orElse(null))));
     protected final Set<String> blacklistCache;
+    protected long lastUpdated;
+    protected @Nullable String abuseIpdbKey;
 
-    public Set<String> getBlacklistCache() {
-        return blacklistCache;
-    }
-
-    public long getLastUpdated() {
-        return lastUpdated;
-    }
-
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated) {
+    protected IpChecker(Set<String> blacklistCache, long lastUpdated, @Nullable String abuseIpdbKey) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
+        this.abuseIpdbKey = abuseIpdbKey;
     }
 
     public static IpChecker load(File saveFile) throws IOException {
@@ -57,13 +53,13 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(new HashSet<>(), 0);
+            return new IpChecker(new HashSet<>(), 0, null);
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(new HashSet<>(), 0);
+            return new IpChecker(new HashSet<>(), 0, null);
         }
     }
 
@@ -128,9 +124,50 @@ public class IpChecker {
         return true;
     }
 
-    public Future<Boolean> updateNow(String abuseIpdbKey) {
+    // Yes I know protected does not make it hidden from other mods, or even hidden in memory.
+    protected @Nullable String getAbuseIpdbKey() {
+        return abuseIpdbKey;
+    }
+
+    public void setAbuseIpdbKey(@Nullable String abuseIpdbKey) {
+        this.abuseIpdbKey = abuseIpdbKey;
+    }
+
+    public Set<String> getBlacklistCache() {
+        return blacklistCache;
+    }
+
+    public long getLastUpdated() {
+        return lastUpdated;
+    }
+
+    public boolean isBlacklisted(String ip) {
+        return blacklistCache.contains(ip);
+    }
+
+    protected void save(File file) throws IOException {
+        assert file.exists();
+        JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
+        try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
+            Streams.write(json, writer);
+        }
+    }
+
+    public Future<Boolean> update(long cooldown) {
+        if (System.currentTimeMillis() - lastUpdated > cooldown) {
+            return updateNow();
+        }
+        return CompletableFuture.completedFuture(Boolean.FALSE);
+    }
+
+    public Future<Boolean> updateNow() {
         FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
-        FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> fetchFromAbuseIpdb(abuseIpdbKey));
+        FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
+            if (abuseIpdbKey != null) {
+                return fetchFromAbuseIpdb(abuseIpdbKey);
+            }
+            return false;
+        });
         FutureTask<Boolean> finished = new FutureTask<>(() -> {
             try {
                 boolean hunterSucceeded = hunter.get();
@@ -146,24 +183,5 @@ public class IpChecker {
         new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
         new Thread(finished, "AntiScan Save").start();
         return finished;
-    }
-
-    public Future<Boolean> update(String abuseIpdbKey, long cooldown) {
-        if (System.currentTimeMillis() - lastUpdated > cooldown) {
-            return updateNow(abuseIpdbKey);
-        }
-        return CompletableFuture.completedFuture(Boolean.FALSE);
-    }
-
-    protected void save(File file) throws IOException {
-        assert file.exists();
-        JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
-        try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
-            Streams.write(json, writer);
-        }
-    }
-
-    public boolean isBlacklisted(String ip) {
-        return blacklistCache.contains(ip);
     }
 }
