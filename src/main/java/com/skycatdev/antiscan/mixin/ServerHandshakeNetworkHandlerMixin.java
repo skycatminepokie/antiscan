@@ -15,7 +15,7 @@ public class ServerHandshakeNetworkHandlerMixin {
         if (packet.address().equals("localhost") || !AntiScan.IP_CHECKER.isBlacklisted(packet.address())) {
             original.call(packet, transfer);
         } else {
-            AntiScan.LOGGER.info("Tarpitting connection from {}", packet.address());
+            AntiScan.LOGGER.info("Tarpitting connection from {}:{}", packet.address(), packet.port());
         }
     }
 }
