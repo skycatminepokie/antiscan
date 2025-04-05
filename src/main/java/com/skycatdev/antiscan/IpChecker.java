@@ -154,13 +154,23 @@ public class IpChecker {
     }
 
     public Future<Boolean> update(long cooldown) {
+        return update(cooldown, null);
+    }
+
+    public Future<Boolean> update(long cooldown, @Nullable File saveFile) {
         if (System.currentTimeMillis() - lastUpdated > cooldown) {
-            return updateNow();
+            return updateNow(saveFile);
         }
         return CompletableFuture.completedFuture(Boolean.FALSE);
     }
 
     public Future<Boolean> updateNow() {
+        return updateNow(null);
+    }
+
+    public Future<Boolean> updateNow(@Nullable File saveFile) {
+        lastUpdated = System.currentTimeMillis();
+        AntiScan.LOGGER.info("Updating blacklisted IPs.");
         FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
         FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
             if (abuseIpdbKey != null) {
@@ -172,7 +182,7 @@ public class IpChecker {
             try {
                 boolean hunterSucceeded = hunter.get();
                 boolean abuseIpdbSucceeded = abuseIpdb.get();
-                lastUpdated = System.currentTimeMillis();
+                save(saveFile);
                 return hunterSucceeded || abuseIpdbSucceeded;
             } catch (InterruptedException | ExecutionException e) {
                 AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
