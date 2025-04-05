@@ -9,10 +9,7 @@ import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.File;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintWriter;
+import java.io.*;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -31,7 +28,7 @@ public class IpChecker {
                 return set;
             }, set -> set.stream().toList()).fieldOf("blacklist").forGetter(IpChecker::getBlacklistCache),
             Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
-            Codec.STRING.optionalFieldOf("apiKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey()))
+            Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey()))
     ).apply(instance, (blacklist, lastUpdated, apiKey) -> new IpChecker(blacklist, lastUpdated, apiKey.orElse(null))));
     protected final Set<String> blacklistCache;
     protected long lastUpdated;
@@ -142,7 +139,56 @@ public class IpChecker {
     }
 
     public boolean isBlacklisted(String ip) {
-        return blacklistCache.contains(ip);
+        return blacklistCache.contains(ip) || !checkIp(ip);
+    }
+
+    /**
+     *
+     * @param ip The ip to check
+     * @return True if the ip is deemed malicious (or on failure)
+     */
+    public boolean checkIp(String ip) {
+        AntiScan.LOGGER.info("Checking ip '{}'", ip);
+        HttpResponse<String> response;
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
+                    .GET()
+                    .setHeader("Key", abuseIpdbKey)
+                    .setHeader("Accept", "application/json")
+                    .build();
+            try {
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                return false;
+            }
+        }
+        if (response != null) {
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                JsonElement json;
+                try (JsonReader reader = new JsonReader(new StringReader(response.body()))) {
+                    json = Streams.parse(reader);
+                } catch (IOException e) {
+                    AntiScan.LOGGER.warn("Failed to parse ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                    return true;
+                }
+                if (json != null) {
+                    boolean safe = json.getAsJsonObject().get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt() < 90;
+                    if (!safe) {
+                        blacklistCache.add(ip);
+                    }
+                    return safe;
+                }
+            } else {
+                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                return true;
+            }
+        } else {
+            AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
+            return true;
+        }
+        return true;
     }
 
     protected void save(File file) throws IOException {
@@ -182,7 +228,9 @@ public class IpChecker {
             try {
                 boolean hunterSucceeded = hunter.get();
                 boolean abuseIpdbSucceeded = abuseIpdb.get();
-                save(saveFile);
+                if (saveFile != null) {
+                    save(saveFile);
+                }
                 return hunterSucceeded || abuseIpdbSucceeded;
             } catch (InterruptedException | ExecutionException e) {
                 AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
