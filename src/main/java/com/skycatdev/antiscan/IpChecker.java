@@ -191,7 +191,7 @@ public class IpChecker {
     }
 
     protected void save(File file) throws IOException {
-        assert file.exists();
+        if (!file.exists()) throw new FileNotFoundException();
         JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
         try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
             Streams.write(json, writer);

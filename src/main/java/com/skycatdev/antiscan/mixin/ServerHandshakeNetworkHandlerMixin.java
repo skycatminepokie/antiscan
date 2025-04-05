@@ -8,10 +8,10 @@ import net.minecraft.server.network.ServerHandshakeNetworkHandler;
 import org.spongepowered.asm.mixin.Mixin;
 
 @Mixin(ServerHandshakeNetworkHandler.class)
-public class ServerHandshakeNetworkHandlerMixin {
+public abstract class ServerHandshakeNetworkHandlerMixin {
 
     @WrapMethod(method = "login")
-    private void antiScan$wrapLogin(HandshakeC2SPacket packet, boolean transfer, Operation<Void> original) {
+    private void antiScan$tarpitBaddies(HandshakeC2SPacket packet, boolean transfer, Operation<Void> original) {
         if (packet.address().equals("localhost") || !AntiScan.IP_CHECKER.isBlacklisted(packet.address())) {
             original.call(packet, transfer);
         } else {

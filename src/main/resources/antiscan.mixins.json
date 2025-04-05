@@ -3,7 +3,8 @@
 	"package": "com.skycatdev.antiscan.mixin",
 	"compatibilityLevel": "JAVA_21",
 	"mixins": [
-		"ServerHandshakeNetworkHandlerMixin"
+		"ServerHandshakeNetworkHandlerMixin",
+		"ServerLoginNetworkHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
