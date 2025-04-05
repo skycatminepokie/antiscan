@@ -1,7 +1,7 @@
 plugins {
 	id 'fabric-loom' version '1.10-SNAPSHOT'
 	id 'maven-publish'
-	id "dev.kikugie.j52j" version "1.0"
+	// TODO: Add j52j
 }
 
 version = stonecutter.current.version
