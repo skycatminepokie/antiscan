@@ -19,13 +19,13 @@ public class NameChecker {
                 Set<String> set = ConcurrentHashMap.newKeySet();
                 set.addAll(list);
                 return set;
-            }, set -> set.stream().toList()).fieldOf("blacklist").forGetter(NameChecker::getBlacklistCache)
+            }, set -> set.stream().toList()).fieldOf("blacklist").forGetter(NameChecker::getBlacklist)
     ).apply(instance, NameChecker::new));
 
-    protected final Set<String> blacklistCache;
+    protected final Set<String> blacklist;
 
-    protected NameChecker(Set<String> blacklistCache) {
-        this.blacklistCache = blacklistCache;
+    protected NameChecker(Set<String> blacklist) {
+        this.blacklist = blacklist;
     }
 
     public static NameChecker load(File saveFile) throws IOException {
@@ -49,39 +49,60 @@ public class NameChecker {
     }
 
     public boolean blacklist(String name) {
-        return blacklist(name, null);
+        try {
+            return blacklist(name, null);
+        } catch (IOException e) {
+            AntiScan.LOGGER.warn("Failed to save name blacklist. This is NOT a fatal error.", e);
+            return false;
+        }
     }
 
     /**
      *
      * @return {@code false} iff saving was attempted and failed.
      */
-    public boolean blacklist(String name, @Nullable File saveFile) {
-        blacklistCache.add(name);
-        if (saveFile != null) {
-            try {
-                save(saveFile);
-            } catch (IOException e) {
-                AntiScan.LOGGER.warn("Failed to save name blacklist. This is NOT a fatal error.", e);
-                return false;
-            }
+    public boolean blacklist(String name, @Nullable File saveFile) throws IOException {
+        boolean added = blacklist.add(name);
+        if (added && saveFile != null) {
+            save(saveFile);
         }
-        return true;
+        return added;
     }
 
-    public Set<String> getBlacklistCache() {
-        return blacklistCache;
+    public Set<String> getBlacklist() {
+        return blacklist;
     }
 
     public boolean isBlacklisted(String name) {
-        return blacklistCache.contains(name);
+        return blacklist.contains(name);
     }
 
     protected void save(File file) throws IOException {
-        if (!file.exists()) throw new FileNotFoundException();
+        if (!file.exists()) {
+            if (file.isDirectory() || !file.createNewFile()) {
+                throw new FileNotFoundException();
+            }
+        }
         JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
         try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
             Streams.write(json, writer);
         }
+    }
+
+    public boolean unBlacklist(String name) {
+        try {
+            return unBlacklist(name, null);
+        } catch (IOException e) {
+            AntiScan.LOGGER.warn("Failed to save name blacklist, even though we weren't trying?", e);
+            return false;
+        }
+    }
+
+    public boolean unBlacklist(String name, @Nullable File saveFile) throws IOException {
+        boolean removed = blacklist.remove(name);
+        if (removed && saveFile != null) {
+            save(saveFile);
+        }
+        return removed;
     }
 }

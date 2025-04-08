@@ -7,6 +7,7 @@ import com.google.gson.stream.JsonWriter;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
@@ -15,28 +16,34 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
 
 public class IpChecker {
     public static final Codec<IpChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.STRING.listOf().xmap(list -> {
-                Set<String> set = ConcurrentHashMap.newKeySet();
-                set.addAll(list);
-                return set;
-            }, set -> set.stream().toList()).fieldOf("blacklist").forGetter(IpChecker::getBlacklistCache),
+            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("blacklistCache").forGetter(IpChecker::getBlacklistCache),
             Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
-            Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey()))
-    ).apply(instance, (blacklist, lastUpdated, apiKey) -> new IpChecker(blacklist, lastUpdated, apiKey.orElse(null))));
+            Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey())),
+            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist)
+    ).apply(instance, (blacklistCache, lastUpdated, apiKey, manualBlacklist) -> new IpChecker(blacklistCache, lastUpdated, apiKey.orElse(null), manualBlacklist)));
     protected final Set<String> blacklistCache;
+    protected final Set<String> manualBlacklist;
     protected long lastUpdated;
     protected @Nullable String abuseIpdbKey;
 
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated, @Nullable String abuseIpdbKey) {
+    protected IpChecker(Set<String> blacklistCache, long lastUpdated, @Nullable String abuseIpdbKey, Set<String> manualBlacklist) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
         this.abuseIpdbKey = abuseIpdbKey;
+        this.manualBlacklist = manualBlacklist;
+    }
+
+    private static <T> @NotNull Set<T> listToConcurrentSet(List<T> list) {
+        Set<T> set = ConcurrentHashMap.newKeySet();
+        set.addAll(list);
+        return set;
     }
 
     public static IpChecker load(File saveFile) throws IOException {
@@ -49,14 +56,91 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null);
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null, ConcurrentHashMap.newKeySet());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null);
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null, ConcurrentHashMap.newKeySet());
         }
+    }
+
+    public boolean blacklist(String ip) {
+        return blacklist(ip, false);
+    }
+
+    public boolean blacklist(String ip, boolean manual) {
+        try {
+            return blacklist(ip, manual, null);
+        } catch (IOException e) {
+            AntiScan.LOGGER.warn("Failed to save blacklist, even though we weren't trying?", e);
+            return false;
+        }
+    }
+
+    public boolean blacklist(String ip, boolean manual, @Nullable File saveFile) throws IOException {
+        boolean added;
+        if (manual) {
+            added = manualBlacklist.add(ip);
+        } else {
+            added = blacklistCache.add(ip);
+        }
+        if (added && saveFile != null) {
+            save(saveFile);
+        }
+        return added;
+    }
+
+    /**
+     * @param ip The ip to check
+     * @return True if the ip is deemed malicious (or on failure)
+     */
+    public boolean checkAbuseIpdb(String ip) {
+        if (abuseIpdbKey == null) {
+            return false;
+        }
+        AntiScan.LOGGER.info("Checking ip '{}'", ip);
+        HttpResponse<String> response;
+        try (HttpClient client = HttpClient.newHttpClient()) {
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
+                    .GET()
+                    .setHeader("Key", abuseIpdbKey)
+                    .setHeader("Accept", "application/json")
+                    .build();
+            try {
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException | InterruptedException e) {
+                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                return false;
+            }
+        }
+        if (response != null) {
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                JsonElement json;
+                try (JsonReader reader = new JsonReader(new StringReader(response.body()))) {
+                    json = Streams.parse(reader);
+                } catch (IOException e) {
+                    AntiScan.LOGGER.warn("Failed to parse ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                    return true;
+                }
+                if (json != null) {
+                    boolean safe = json.getAsJsonObject().get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt() < 90;
+                    if (!safe) {
+                        blacklistCache.add(ip);
+                    }
+                    return safe;
+                }
+            } else {
+                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                return true;
+            }
+        } else {
+            AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
+            return true;
+        }
+        return true;
     }
 
     // https://curlconverter.com/java/
@@ -137,65 +221,37 @@ public class IpChecker {
         return lastUpdated;
     }
 
-    public boolean isBlacklisted(String ip) {
-        return blacklistCache.contains(ip) || !checkIp(ip);
+    public Set<String> getManualBlacklist() {
+        return manualBlacklist;
     }
 
-    /**
-     *
-     * @param ip The ip to check
-     * @return True if the ip is deemed malicious (or on failure)
-     */
-    public boolean checkIp(String ip) {
-        AntiScan.LOGGER.info("Checking ip '{}'", ip);
-        HttpResponse<String> response;
-        try (HttpClient client = HttpClient.newHttpClient()) {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
-                    .GET()
-                    .setHeader("Key", abuseIpdbKey)
-                    .setHeader("Accept", "application/json")
-                    .build();
-            try {
-                response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            } catch (IOException | InterruptedException e) {
-                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
-                return false;
-            }
-        }
-        if (response != null) {
-            if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                JsonElement json;
-                try (JsonReader reader = new JsonReader(new StringReader(response.body()))) {
-                    json = Streams.parse(reader);
-                } catch (IOException e) {
-                    AntiScan.LOGGER.warn("Failed to parse ip check from AbuseIPDB. This is NOT a fatal error.", e);
-                    return true;
-                }
-                if (json != null) {
-                    boolean safe = json.getAsJsonObject().get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt() < 90;
-                    if (!safe) {
-                        blacklistCache.add(ip);
-                    }
-                    return safe;
-                }
-            } else {
-                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
-                return true;
-            }
-        } else {
-            AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
-            return true;
-        }
-        return true;
+    public boolean isBlacklisted(String ip) {
+        return blacklistCache.contains(ip) || manualBlacklist.contains(ip) || checkAbuseIpdb(ip);
     }
 
     protected void save(File file) throws IOException {
-        if (!file.exists()) throw new FileNotFoundException();
+        if (!file.exists()) {
+            if (file.isDirectory() || !file.createNewFile()) {
+                throw new FileNotFoundException();
+            }
+        }
         JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
         try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
             Streams.write(json, writer);
         }
+    }
+
+    public boolean unBlacklist(String ip, boolean manual, @Nullable File saveFile) throws IOException {
+        boolean removed;
+        if (manual) {
+            removed = manualBlacklist.remove(ip);
+        } else {
+            removed = blacklistCache.remove(ip);
+        }
+        if (removed && saveFile != null) {
+            save(saveFile);
+        }
+        return removed;
     }
 
     public Future<Boolean> update(long cooldown) {

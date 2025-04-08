@@ -1,6 +1,7 @@
 package com.skycatdev.antiscan;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,5 +31,6 @@ public class AntiScan implements ModInitializer {
     @Override
     public void onInitialize() {
         IP_CHECKER.update(TimeUnit.HOURS.toMillis(5), IP_CHECKER_FILE);
+        CommandRegistrationCallback.EVENT.register(new CommandHandler());
     }
 }
