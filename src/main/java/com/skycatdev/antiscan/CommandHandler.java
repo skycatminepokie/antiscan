@@ -10,7 +10,6 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager.RegistrationEnvironment;
 import net.minecraft.server.command.ServerCommandSource;
-import net.minecraft.text.Text;
 
 import java.io.IOException;
 
@@ -27,7 +26,7 @@ public class CommandHandler implements CommandRegistrationCallback {
             if (AntiScan.IP_CHECKER.blacklist(ip1, true, AntiScan.IP_CHECKER_FILE)) {
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Text.literal(String.format("%s is already blacklisted!", ip1)), false);
+            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is already blacklisted!", ip1)), false);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_BLACKLIST.create("ip");
@@ -40,7 +39,7 @@ public class CommandHandler implements CommandRegistrationCallback {
             if (AntiScan.NAME_CHECKER.blacklist(name, AntiScan.NAME_CHECKER_FILE)) {
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Text.literal(String.format("%s is already blacklisted!", name)), false);
+            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is already blacklisted!", name)), false);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_BLACKLIST.create("name");
@@ -53,7 +52,7 @@ public class CommandHandler implements CommandRegistrationCallback {
             if (AntiScan.IP_CHECKER.unBlacklist(ip, true, AntiScan.IP_CHECKER_FILE)) {
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Text.literal(String.format("%s is already un-blacklisted!", ip)), false);
+            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is already un-blacklisted!", ip)), false);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_UN_BLACKLIST.create("ip");
@@ -66,7 +65,7 @@ public class CommandHandler implements CommandRegistrationCallback {
             if (AntiScan.NAME_CHECKER.unBlacklist(name, AntiScan.NAME_CHECKER_FILE)) {
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Text.literal(String.format("%s is already un-blacklisted!", name)), false);
+            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is already un-blacklisted!", name)), false);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_UN_BLACKLIST.create("name");

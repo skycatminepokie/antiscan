@@ -146,9 +146,9 @@ public class IpChecker {
         return true;
     }
 
-    // https://curlconverter.com/java/
     protected boolean fetchFromAbuseIpdb(String apiKey) {
         HttpResponse<String> response;
+        // https://curlconverter.com/java/
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.abuseipdb.com/api/v2/blacklist?confidenceMinimum=90"))
@@ -180,6 +180,7 @@ public class IpChecker {
 
     protected boolean fetchFromHunter() {
         HttpResponse<String> response;
+        // https://curlconverter.com/java/
         try (HttpClient client = HttpClient.newHttpClient()) {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://raw.githubusercontent.com/pebblehost/hunter/refs/heads/master/ips.txt"))
