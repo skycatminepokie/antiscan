@@ -16,6 +16,7 @@ import net.minecraft.server.command.ServerCommandSource;
 
 import java.io.IOException;
 import java.util.Collection;
+import java.util.concurrent.TimeUnit;
 
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
@@ -80,6 +81,12 @@ public class CommandHandler implements CommandRegistrationCallback {
         return finalBlacklisted;
     }
 
+    private static int forceUpdateIpBlacklist(CommandContext<ServerCommandSource> context) {
+        AntiScan.IP_CHECKER.updateNow(AntiScan.IP_CHECKER_FILE);
+        context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated."), true);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
@@ -104,6 +111,12 @@ public class CommandHandler implements CommandRegistrationCallback {
         } catch (IOException e) {
             throw FAILED_TO_UN_BLACKLIST.create("name");
         }
+    }
+
+    private static int updateIpBlacklist(CommandContext<ServerCommandSource> context) {
+        AntiScan.IP_CHECKER.update(TimeUnit.HOURS.toMillis(5), AntiScan.IP_CHECKER_FILE);
+        context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated if it has not been updated in the last 5 hours. Add \"force\" to do it now."), true);
+        return Command.SINGLE_SUCCESS;
     }
 
     @Override
@@ -137,6 +150,14 @@ public class CommandHandler implements CommandRegistrationCallback {
         var ipBlacklistCheckIp = argument("ip", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.ip.blacklist.check", 3))
                 .executes(CommandHandler::checkIp)
+                .build();
+        var ipBlacklistUpdate = literal("update")
+                .requires(Permissions.require("antiscan.ip.blacklist.update", 4))
+                .executes(CommandHandler::updateIpBlacklist)
+                .build();
+        var ipBlacklistUpdateForce = literal("force")
+                .requires(Permissions.require("antiscan.ip.blacklist.update.force", 4))
+                .executes(CommandHandler::forceUpdateIpBlacklist)
                 .build();
         var name = literal("name")
                 .requires(Permissions.require("antiscan.name", 3))
@@ -176,6 +197,8 @@ public class CommandHandler implements CommandRegistrationCallback {
                         ipBlacklistRemove.addChild(ipBlacklistRemoveIp);
                     ipBlacklist.addChild(ipBlacklistCheck);
                         ipBlacklistCheck.addChild(ipBlacklistCheckIp);
+                    ipBlacklist.addChild(ipBlacklistUpdate);
+                        ipBlacklistUpdate.addChild(ipBlacklistUpdateForce);
             antiScan.addChild(name);
                 name.addChild(nameBlacklist);
                     nameBlacklist.addChild(nameBlacklistAdd);
