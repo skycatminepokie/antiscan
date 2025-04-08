@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -108,6 +109,7 @@ public class IpChecker {
                     .GET()
                     .setHeader("Key", abuseIpdbKey)
                     .setHeader("Accept", "application/json")
+                    .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
                     .build();
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
