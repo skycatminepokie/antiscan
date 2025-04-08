@@ -6,6 +6,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
 import net.minecraft.server.command.CommandManager.RegistrationEnvironment;
@@ -75,46 +76,46 @@ public class CommandHandler implements CommandRegistrationCallback {
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
         var antiScan = literal("antiscan")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan", 3))
                 .build();
         var ip = literal("ip")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip", 3))
                 .build();
         var ipBlacklist = literal("blacklist")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip.blacklist", 3))
                 .build();
         var ipBlacklistAdd = literal("add")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip.blacklist.add", 3))
                 .build();
         var ipBlacklistAddIp = argument("ip", StringArgumentType.string())
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip.blacklist.add", 3))
                 .executes(CommandHandler::blacklistIp)
                 .build();
         var ipBlacklistRemove = literal("remove")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip.blacklist.remove", 3))
                 .build();
         var ipBlacklistRemoveIp = argument("ip", StringArgumentType.string())
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.ip.blacklist.remove", 3))
                 .executes(CommandHandler::unBlacklistIp)
                 .build();
         var name = literal("name")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name", 3))
                 .build();
         var nameBlacklist = literal("blacklist")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name.blacklist", 3))
                 .build();
         var nameBlacklistAdd = literal("add")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name.blacklist.add", 3))
                 .build();
         var nameBlacklistAddName = argument("name", StringArgumentType.string())
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name.blacklist.add", 3))
                 .executes(CommandHandler::blacklistName)
                 .build();
         var nameBlacklistRemove = literal("remove")
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name.blacklist.remove", 3))
                 .build();
         var nameBlacklistRemoveName = argument("name", StringArgumentType.string())
-                .requires(source -> source.hasPermissionLevel(4))
+                .requires(Permissions.require("antiscan.name.blacklist.remove", 3))
                 .executes(CommandHandler::unBlacklistName)
                 .build();
         //@formatter:off
