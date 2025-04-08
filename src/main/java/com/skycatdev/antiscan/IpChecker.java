@@ -1,5 +1,6 @@
 package com.skycatdev.antiscan;
 
+import com.google.gson.FormattingStyle;
 import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
@@ -239,6 +240,7 @@ public class IpChecker {
         }
         JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
         try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
+            writer.setFormattingStyle(FormattingStyle.PRETTY);
             Streams.write(json, writer);
         }
     }
