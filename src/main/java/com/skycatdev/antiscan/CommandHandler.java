@@ -87,6 +87,38 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int listAllBlacklistedIps(CommandContext<ServerCommandSource> context) {
+        for (String ip : AntiScan.IP_CHECKER.getManualBlacklist()) {
+            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+        }
+        int ips = AntiScan.IP_CHECKER.getManualBlacklist().size();
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs manually blacklisted)", ips)), false);
+        for (String ip : AntiScan.IP_CHECKER.getBlacklistCache()) {
+            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+        }
+        int cached = AntiScan.IP_CHECKER.getBlacklistCache().size();
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs automatically blacklisted)", cached)), false);
+        return ips + cached;
+    }
+
+    private static int listBlacklistedIps(CommandContext<ServerCommandSource> context) {
+        for (String ip : AntiScan.IP_CHECKER.getManualBlacklist()) {
+            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+        }
+        int ips = AntiScan.IP_CHECKER.getManualBlacklist().size();
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs)", ips)), false);
+        return ips;
+    }
+
+    private static int listBlacklistedNames(CommandContext<ServerCommandSource> context) {
+        for (String name : AntiScan.NAME_CHECKER.getBlacklist()) {
+            context.getSource().sendFeedback(() -> Utils.textOf(name), false);
+        }
+        int names = AntiScan.NAME_CHECKER.getBlacklist().size();
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d names)", names)), false);
+        return names;
+    }
+
     private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
@@ -159,6 +191,14 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.ip.blacklist.update.force", 4))
                 .executes(CommandHandler::forceUpdateIpBlacklist)
                 .build();
+        var ipBlacklistList = literal("list")
+                .requires(Permissions.require("antiscan.ip.blacklist.list", 3))
+                .executes(CommandHandler::listBlacklistedIps)
+                .build();
+        var ipBlacklistListAll = literal("all")
+                .requires(Permissions.require("antiscan.ip.blacklist.list.all", 3))
+                .executes(CommandHandler::listAllBlacklistedIps)
+                .build();
         var name = literal("name")
                 .requires(Permissions.require("antiscan.name", 3))
                 .build();
@@ -186,6 +226,10 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.name.blacklist.check", 3))
                 .executes(CommandHandler::checkName)
                 .build();
+        var nameBlacklistList = literal("list")
+                .requires(Permissions.require("antiscan.name.blacklist.list", 3))
+                .executes(CommandHandler::listBlacklistedNames)
+                .build();
 
         //@formatter:off
         dispatcher.getRoot().addChild(antiScan);
@@ -199,6 +243,8 @@ public class CommandHandler implements CommandRegistrationCallback {
                         ipBlacklistCheck.addChild(ipBlacklistCheckIp);
                     ipBlacklist.addChild(ipBlacklistUpdate);
                         ipBlacklistUpdate.addChild(ipBlacklistUpdateForce);
+                    ipBlacklist.addChild(ipBlacklistList);
+                        ipBlacklistList.addChild(ipBlacklistListAll);
             antiScan.addChild(name);
                 name.addChild(nameBlacklist);
                     nameBlacklist.addChild(nameBlacklistAdd);
@@ -207,6 +253,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                         nameBlacklistRemove.addChild(nameBlacklistRemoveName);
                     nameBlacklist.addChild(nameBlacklistCheck);
                         nameBlacklistCheck.addChild(nameBlacklistCheckName);
+                    nameBlacklist.addChild(nameBlacklistList);
         //@formatter:on
     }
 }
