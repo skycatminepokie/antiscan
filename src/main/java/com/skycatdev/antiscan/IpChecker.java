@@ -214,7 +214,18 @@ public class IpChecker {
     }
 
     public void setAbuseIpdbKey(@Nullable String abuseIpdbKey) {
+        try {
+            setAbuseIpdbKey(abuseIpdbKey, null);
+        } catch (IOException e) {
+            AntiScan.LOGGER.warn("Failed to save, even though we weren't trying?", e);
+        }
+    }
+
+    public void setAbuseIpdbKey(@Nullable String abuseIpdbKey, @Nullable File saveFile) throws IOException {
         this.abuseIpdbKey = abuseIpdbKey;
+        if (saveFile != null) {
+            save(saveFile);
+        }
     }
 
     public Set<String> getBlacklistCache() {

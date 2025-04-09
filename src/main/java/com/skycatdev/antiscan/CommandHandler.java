@@ -7,6 +7,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
+import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
@@ -24,6 +25,7 @@ import static net.minecraft.server.command.CommandManager.literal;
 public class CommandHandler implements CommandRegistrationCallback {
     public static final DynamicCommandExceptionType FAILED_TO_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to blacklist %s.", name));
     public static final DynamicCommandExceptionType FAILED_TO_UN_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to un-blacklist %s.", name));
+    public static final SimpleCommandExceptionType FAILED_TO_SET_KEY = new SimpleCommandExceptionType(() -> "Failed to set key!");
 
     private static int blacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
@@ -151,6 +153,16 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.IP_CHECKER.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.IP_CHECKER_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_KEY.create();
+        }
+        context.getSource().sendFeedback(() -> Utils.textOf("Set! Make sure to clear your command history (including the file!) or terminal."), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
         var antiScan = literal("antiscan")
@@ -230,6 +242,13 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.name.blacklist.list", 3))
                 .executes(CommandHandler::listBlacklistedNames)
                 .build();
+        var setAbuseIpdbKey = literal("setAbuseIpdbKey")
+                .requires(Permissions.require("antiscan.setAbuseIpdbKey", 4))
+                .build();
+        var setAbuseIpdbKeyKey = argument("key", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.setAbuseIpdbKey", 4))
+                .executes(CommandHandler::setAbuseIpdbKey)
+                .build();
 
         //@formatter:off
         dispatcher.getRoot().addChild(antiScan);
@@ -254,6 +273,8 @@ public class CommandHandler implements CommandRegistrationCallback {
                     nameBlacklist.addChild(nameBlacklistCheck);
                         nameBlacklistCheck.addChild(nameBlacklistCheckName);
                     nameBlacklist.addChild(nameBlacklistList);
+            antiScan.addChild(setAbuseIpdbKey);
+                setAbuseIpdbKey.addChild(setAbuseIpdbKeyKey);
         //@formatter:on
     }
 }
