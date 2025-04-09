@@ -125,6 +125,7 @@ public class CommandHandler implements CommandRegistrationCallback {
         try {
             String ip = StringArgumentType.getString(context, "ip");
             if (AntiScan.IP_CHECKER.unBlacklist(ip, true, AntiScan.IP_CHECKER_FILE)) {
+                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Removed %s from the blacklist!", ip)), true);
                 return Command.SINGLE_SUCCESS;
             }
             context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was not blacklisted!", ip)), true);
@@ -138,6 +139,7 @@ public class CommandHandler implements CommandRegistrationCallback {
         try {
             String name = StringArgumentType.getString(context, "name");
             if (AntiScan.NAME_CHECKER.unBlacklist(name, AntiScan.NAME_CHECKER_FILE)) {
+                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Removed %s from the blacklist!", name)), true);
                 return Command.SINGLE_SUCCESS;
             }
             context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was not blacklisted!", name)), true);
