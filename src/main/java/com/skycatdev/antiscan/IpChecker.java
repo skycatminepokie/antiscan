@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 public class IpChecker {
     public static final Codec<IpChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -312,5 +313,50 @@ public class IpChecker {
         new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
         new Thread(finished, "AntiScan Save").start();
         return finished;
+    }
+
+    public Future<Boolean> report(String ip, String comment, int[] categories) {
+        FutureTask<Boolean> future = new FutureTask<>(() -> reportNow(ip, comment, categories));
+        new Thread(future, "AntiScan Reporting").start();
+        return future;
+    }
+
+    public boolean reportNow(String ip, String comment, int[] categories) {
+        if (abuseIpdbKey != null && !ip.equals("127.0.0.1") && ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+            HttpResponse<String> response;
+            try (HttpClient client = HttpClient.newHttpClient()) {
+                HttpRequest request = HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                String.format("ip=%s&categories=%s&comment=%s",
+                                        ip,
+                                        Arrays.stream(categories)
+                                                .mapToObj(String::valueOf)
+                                                .collect(Collectors.joining(",")),
+                                        comment.replaceAll("\\w", "+"))))
+                        .setHeader("Key", abuseIpdbKey)
+                        .setHeader("Accept", "application/json")
+                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                        .build();
+                try {
+                    response = client.send(request, HttpResponse.BodyHandlers.ofString());
+                } catch (IOException | InterruptedException e) {
+                    AntiScan.LOGGER.warn("Failed to report IP. This is NOT a fatal error.", e);
+                    return false;
+                }
+            }
+            if (response != null) {
+                if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                    return true;
+                } else {
+                    AntiScan.LOGGER.warn("Failed to report IP to AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                    return false;
+                }
+            } else {
+                AntiScan.LOGGER.warn("Failed to report IP to AbuseIPDB - response was null. This is NOT a fatal error.");
+                return false;
+            }
+        }
+        return false;
     }
 }

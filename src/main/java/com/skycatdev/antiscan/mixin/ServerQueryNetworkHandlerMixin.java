@@ -21,7 +21,10 @@ public abstract class ServerQueryNetworkHandlerMixin {
 
     @WrapMethod(method = "onQueryPing")
     private void antiScan$tarpitBaddiesPing(QueryPingC2SPacket packet, Operation<Void> original) {
-        if (connection.isLocal() || !(connection.getAddress() instanceof InetSocketAddress inetSocketAddress) || inetSocketAddress.getHostName().equals("127.0.0.1") || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName())) {
+        if (connection.isLocal() ||
+            !(connection.getAddress() instanceof InetSocketAddress inetSocketAddress) ||
+            inetSocketAddress.getHostString().equals("127.0.0.1") ||
+            !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
             original.call(packet);
         } else {
             AntiScan.LOGGER.info("Tarpitting ping request from {}", connection.getAddressAsString(true));
@@ -30,7 +33,10 @@ public abstract class ServerQueryNetworkHandlerMixin {
 
     @WrapMethod(method = "onRequest")
     private void antiScan$tarpitBaddiesQuery(QueryRequestC2SPacket packet, Operation<Void> original) {
-        if (connection.isLocal() || !(connection.getAddress() instanceof InetSocketAddress inetSocketAddress) || inetSocketAddress.getHostName().equals("127.0.0.1") || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName())) {
+        if (connection.isLocal() ||
+            !(connection.getAddress() instanceof InetSocketAddress inetSocketAddress) ||
+            inetSocketAddress.getHostName().equals("127.0.0.1") ||
+            !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName())) {
             original.call(packet);
         } else {
             AntiScan.LOGGER.info("Tarpitting query request from {}", connection.getAddressAsString(true));
