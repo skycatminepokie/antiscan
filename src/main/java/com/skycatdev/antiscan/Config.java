@@ -269,6 +269,17 @@ public class Config {
         public String asString() {
             return id;
         }
+
+        public static NameIpMode fromId(String id) {
+            return switch (id) {
+                case "match_all" -> MATCH_ALL;
+                case "match_both" -> MATCH_BOTH;
+                case "match_ip" -> MATCH_IP;
+                case "match_name" -> MATCH_NAME;
+                case "match_none" -> MATCH_NONE;
+                default -> throw new IllegalStateException("Unexpected value: " + id);
+            };
+        }
     }
 
     public enum IpMode implements StringIdentifiable {
@@ -292,7 +303,8 @@ public class Config {
             return switch (id) {
                 case "match_ip" -> MATCH_IP;
                 case "match_all" -> MATCH_ALL;
-                default -> MATCH_NONE;
+                case "match_none" -> MATCH_NONE;
+                default -> throw new IllegalStateException("Unexpected value: " + id);
             };
         }
     }
@@ -318,7 +330,8 @@ public class Config {
             return switch (id) {
                 case "disconnect" -> DISCONNECT;
                 case "tarpit" -> TARPIT;
-                default -> NOTHING;
+                case "nothing" -> NOTHING;
+                default -> throw new IllegalStateException("Unexpected value: " + id);
             };
         }
     }

@@ -102,6 +102,21 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int displayLoginAction(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Login action is %s.", AntiScan.CONFIG.getLoginAction().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayLoginMode(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Login mode is %s.", AntiScan.CONFIG.getLoginMode().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayLoginReport(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isLoginReport() ? "on" : "off")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int forceUpdateIpBlacklist(CommandContext<ServerCommandSource> context) {
         AntiScan.IP_CHECKER.updateNow(AntiScan.IP_CHECKER_FILE);
         context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated."), true);
@@ -177,6 +192,36 @@ public class CommandHandler implements CommandRegistrationCallback {
             throw FAILED_TO_SET_CONFIG.create();
         }
         displayHandshakeReport(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLoginAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setLoginAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayLoginAction(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLoginMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setLoginMode(Config.NameIpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayLoginMode(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLoginReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setLoginReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayLoginReport(context);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -332,6 +377,33 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.config.handshake.report.set", 4))
                 .executes(CommandHandler::setHandshakeReport)
                 .build();
+        var configLogin = literal("login")
+                .requires(Permissions.require("antiscan.config.login", 4))
+                .build();
+        var configLoginMode = literal("mode")
+                .requires(Permissions.require("antiscan.config.login.mode", 4))
+                .executes(CommandHandler::displayLoginMode)
+                .build();
+        var configLoginModeMode = argument("mode", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.login.mode.set", 4))
+                .executes(CommandHandler::setLoginMode)
+                .build();
+        var configLoginAction = literal("action")
+                .requires(Permissions.require("antiscan.config.login.action", 4))
+                .executes(CommandHandler::displayLoginAction)
+                .build();
+        var configLoginActionAction = argument("action", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.login.action.set", 4))
+                .executes(CommandHandler::setLoginAction)
+                .build();
+        var configLogReport = literal("report")
+                .requires(Permissions.require("antiscan.config.login.report", 4))
+                .executes(CommandHandler::displayLoginReport)
+                .build();
+        var configLogReportReport = argument("report", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.login.report.set", 4))
+                .executes(CommandHandler::setLoginReport)
+                .build();
 
         //@formatter:off
         dispatcher.getRoot().addChild(antiScan);
@@ -366,6 +438,13 @@ public class CommandHandler implements CommandRegistrationCallback {
                         configHandshakeMode.addChild(configHandshakeModeMode);
                     configHandshake.addChild(configHandshakeReport);
                         configHandshakeReport.addChild(configHandshakeReportReport);
+                config.addChild(configLogin);
+                    configLogin.addChild(configLoginAction);
+                        configLoginAction.addChild(configLoginActionAction);
+                    configLogin.addChild(configLoginMode);
+                        configLoginMode.addChild(configLoginModeMode);
+                    configLogin.addChild(configLogReport);
+                        configLogReport.addChild(configLogReportReport);
         //@formatter:on
     }
 }
