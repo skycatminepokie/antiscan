@@ -19,7 +19,6 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -28,18 +27,15 @@ public class IpChecker {
     public static final Codec<IpChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("blacklistCache").forGetter(IpChecker::getBlacklistCache),
             Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
-            Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(checker -> Optional.ofNullable(checker.getAbuseIpdbKey())),
             Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist)
-    ).apply(instance, (blacklistCache, lastUpdated, apiKey, manualBlacklist) -> new IpChecker(blacklistCache, lastUpdated, apiKey.orElse(null), manualBlacklist)));
+    ).apply(instance, IpChecker::new));
     protected final Set<String> blacklistCache;
     protected final Set<String> manualBlacklist;
     protected long lastUpdated;
-    protected @Nullable String abuseIpdbKey;
 
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated, @Nullable String abuseIpdbKey, Set<String> manualBlacklist) {
+    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
-        this.abuseIpdbKey = abuseIpdbKey;
         this.manualBlacklist = manualBlacklist;
     }
 
@@ -59,13 +55,13 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null, ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, null, ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet());
         }
     }
 
@@ -100,7 +96,7 @@ public class IpChecker {
      * @return True if the ip is deemed malicious (or on failure)
      */
     public boolean checkAbuseIpdb(String ip) {
-        if (abuseIpdbKey == null) {
+        if (AntiScan.CONFIG.getAbuseIpdbKey() == null) {
             return false;
         }
         AntiScan.LOGGER.info("Checking ip '{}'", ip);
@@ -109,7 +105,7 @@ public class IpChecker {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
                     .GET()
-                    .setHeader("Key", abuseIpdbKey)
+                    .setHeader("Key", AntiScan.CONFIG.getAbuseIpdbKey())
                     .setHeader("Accept", "application/json")
                     .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
                     .build();
@@ -209,26 +205,6 @@ public class IpChecker {
         return true;
     }
 
-    // Yes I know protected does not make it hidden from other mods, or even hidden in memory.
-    protected @Nullable String getAbuseIpdbKey() {
-        return abuseIpdbKey;
-    }
-
-    public void setAbuseIpdbKey(@Nullable String abuseIpdbKey) {
-        try {
-            setAbuseIpdbKey(abuseIpdbKey, null);
-        } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to save, even though we weren't trying?", e);
-        }
-    }
-
-    public void setAbuseIpdbKey(@Nullable String abuseIpdbKey, @Nullable File saveFile) throws IOException {
-        this.abuseIpdbKey = abuseIpdbKey;
-        if (saveFile != null) {
-            save(saveFile);
-        }
-    }
-
     public Set<String> getBlacklistCache() {
         return blacklistCache;
     }
@@ -245,17 +221,10 @@ public class IpChecker {
         return blacklistCache.contains(ip) || manualBlacklist.contains(ip) || checkAbuseIpdb(ip);
     }
 
-    protected void save(File file) throws IOException {
-        if (!file.exists()) {
-            if (file.isDirectory() || !file.createNewFile()) {
-                throw new FileNotFoundException();
-            }
-        }
-        JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
-        try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
-            writer.setFormattingStyle(FormattingStyle.PRETTY);
-            Streams.write(json, writer);
-        }
+    public Future<Boolean> report(String ip, String comment, int[] categories) {
+        FutureTask<Boolean> future = new FutureTask<>(() -> reportNow(ip, comment, categories));
+        new Thread(future, "AntiScan Reporting").start();
+        return future;
     }
 
     public boolean unBlacklist(String ip, boolean manual, @Nullable File saveFile) throws IOException {
@@ -286,43 +255,8 @@ public class IpChecker {
         return updateNow(null);
     }
 
-    public Future<Boolean> updateNow(@Nullable File saveFile) {
-        lastUpdated = System.currentTimeMillis();
-        AntiScan.LOGGER.info("Updating blacklisted IPs.");
-        FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
-        FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
-            if (abuseIpdbKey != null) {
-                return fetchFromAbuseIpdb(abuseIpdbKey);
-            }
-            return false;
-        });
-        FutureTask<Boolean> finished = new FutureTask<>(() -> {
-            try {
-                boolean hunterSucceeded = hunter.get();
-                boolean abuseIpdbSucceeded = abuseIpdb.get();
-                if (saveFile != null) {
-                    save(saveFile);
-                }
-                return hunterSucceeded || abuseIpdbSucceeded;
-            } catch (InterruptedException | ExecutionException e) {
-                AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
-                return false;
-            }
-        });
-        new Thread(hunter, "AntiScan Hunter").start();
-        new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
-        new Thread(finished, "AntiScan Save").start();
-        return finished;
-    }
-
-    public Future<Boolean> report(String ip, String comment, int[] categories) {
-        FutureTask<Boolean> future = new FutureTask<>(() -> reportNow(ip, comment, categories));
-        new Thread(future, "AntiScan Reporting").start();
-        return future;
-    }
-
     public boolean reportNow(String ip, String comment, int[] categories) {
-        if (abuseIpdbKey != null && !ip.equals("127.0.0.1") && ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+        if (AntiScan.CONFIG.getAbuseIpdbKey() != null && !ip.equals("127.0.0.1") && ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
             HttpResponse<String> response;
             try (HttpClient client = HttpClient.newHttpClient()) {
                 HttpRequest request = HttpRequest.newBuilder()
@@ -334,7 +268,7 @@ public class IpChecker {
                                                 .mapToObj(String::valueOf)
                                                 .collect(Collectors.joining(",")),
                                         comment.replaceAll("\\w", "+"))))
-                        .setHeader("Key", abuseIpdbKey)
+                        .setHeader("Key", AntiScan.CONFIG.getAbuseIpdbKey())
                         .setHeader("Accept", "application/json")
                         .setHeader("Content-Type", "application/x-www-form-urlencoded")
                         .build();
@@ -358,5 +292,47 @@ public class IpChecker {
             }
         }
         return false;
+    }
+
+    public void save(File file) throws IOException {
+        if (!file.exists()) {
+            if (file.isDirectory() || !file.createNewFile()) {
+                throw new FileNotFoundException();
+            }
+        }
+        JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
+        try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
+            writer.setFormattingStyle(FormattingStyle.PRETTY);
+            Streams.write(json, writer);
+        }
+    }
+
+    public Future<Boolean> updateNow(@Nullable File saveFile) {
+        lastUpdated = System.currentTimeMillis();
+        AntiScan.LOGGER.info("Updating blacklisted IPs.");
+        FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
+        FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
+            if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
+                return fetchFromAbuseIpdb(AntiScan.CONFIG.getAbuseIpdbKey());
+            }
+            return false;
+        });
+        FutureTask<Boolean> finished = new FutureTask<>(() -> {
+            try {
+                boolean hunterSucceeded = hunter.get();
+                boolean abuseIpdbSucceeded = abuseIpdb.get();
+                if (saveFile != null) {
+                    save(saveFile);
+                }
+                return hunterSucceeded || abuseIpdbSucceeded;
+            } catch (InterruptedException | ExecutionException e) {
+                AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
+                return false;
+            }
+        });
+        new Thread(hunter, "AntiScan Hunter").start();
+        new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
+        new Thread(finished, "AntiScan Save").start();
+        return finished;
     }
 }

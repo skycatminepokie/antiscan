@@ -157,7 +157,7 @@ public class CommandHandler implements CommandRegistrationCallback {
 
     private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
-            AntiScan.IP_CHECKER.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.IP_CHECKER_FILE);
+            AntiScan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_KEY.create();
         }

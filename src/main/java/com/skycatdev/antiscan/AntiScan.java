@@ -12,6 +12,8 @@ import java.util.concurrent.TimeUnit;
 public class AntiScan implements ModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
+    public static final File CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("antiscan.json").toFile();
+    public static final Config CONFIG = Config.loadOrCreate(CONFIG_FILE);
     public static final File IP_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_ips.json").toFile();
     public static final IpChecker IP_CHECKER = IpChecker.loadOrCreate(IP_CHECKER_FILE);
     public static final File NAME_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_names.json").toFile();
@@ -25,6 +27,10 @@ public class AntiScan implements ModInitializer {
         if (!NAME_CHECKER_FILE.getParentFile().exists()) {
             //noinspection ResultOfMethodCallIgnored
             NAME_CHECKER_FILE.getParentFile().mkdirs();
+        }
+        if (!CONFIG_FILE.getParentFile().exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            CONFIG_FILE.getParentFile().mkdirs();
         }
     }
 
