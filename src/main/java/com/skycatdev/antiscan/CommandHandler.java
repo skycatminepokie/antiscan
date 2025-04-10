@@ -9,6 +9,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.exceptions.DynamicCommandExceptionType;
 import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
@@ -25,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import static net.minecraft.server.command.CommandManager.argument;
 import static net.minecraft.server.command.CommandManager.literal;
 
+// I'd love for a better way of the config commands, but the functional one I came up with was more convoluted.
 public class CommandHandler implements CommandRegistrationCallback {
     public static final DynamicCommandExceptionType FAILED_TO_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to blacklist %s.", name));
     public static final DynamicCommandExceptionType FAILED_TO_UN_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to un-blacklist %s.", name));
@@ -114,6 +116,36 @@ public class CommandHandler implements CommandRegistrationCallback {
 
     private static int displayLoginReport(CommandContext<ServerCommandSource> context) {
         context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isLoginReport() ? "on" : "off")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayPingAction(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Ping action is %s.", AntiScan.CONFIG.getPingAction().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayPingMode(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Ping mode is %s.", AntiScan.CONFIG.getPingMode().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayPingReport(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isPingReport() ? "on" : "off")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayQueryAction(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Query action is %s.", AntiScan.CONFIG.getQueryAction().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayQueryMode(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Query mode is %s.", AntiScan.CONFIG.getQueryMode().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayQueryReport(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isQueryReport() ? "on" : "off")), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -225,6 +257,66 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int setPingAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setPingAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayPingAction(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setPingMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setPingMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayPingMode(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setPingReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setPingReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayPingReport(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setQueryAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setQueryAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayQueryAction(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setQueryMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setQueryMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayQueryMode(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setQueryReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setQueryReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayQueryReport(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
@@ -261,6 +353,10 @@ public class CommandHandler implements CommandRegistrationCallback {
 
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
+        SuggestionProvider<ServerCommandSource> actionSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder);
+        SuggestionProvider<ServerCommandSource> ipModeSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.IpMode.values()).map(Config.IpMode::asString), builder);
+        SuggestionProvider<ServerCommandSource> nameIpModeSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.NameIpMode.values()).map(Config.NameIpMode::asString), builder);
+
         var antiScan = literal("antiscan")
                 .requires(Permissions.require("antiscan", 3))
                 .build();
@@ -357,7 +453,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .build();
         var configHandshakeModeMode = argument("mode", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.config.handshake.mode.set", 4))
-                .suggests((context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.IpMode.values()).map(Config.IpMode::asString), builder))
+                .suggests(ipModeSuggestionProvider)
                 .executes(CommandHandler::setHandshakeMode)
                 .build();
         var configHandshakeAction = literal("action")
@@ -366,7 +462,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .build();
         var configHandshakeActionAction = argument("action", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.config.handshake.action.set", 4))
-                .suggests((context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder))
+                .suggests(actionSuggestionProvider)
                 .executes(CommandHandler::setHandshakeAction)
                 .build();
         var configHandshakeReport = literal("report")
@@ -386,6 +482,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .build();
         var configLoginModeMode = argument("mode", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.config.login.mode.set", 4))
+                .suggests(nameIpModeSuggestionProvider)
                 .executes(CommandHandler::setLoginMode)
                 .build();
         var configLoginAction = literal("action")
@@ -394,6 +491,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .build();
         var configLoginActionAction = argument("action", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.config.login.action.set", 4))
+                .suggests(actionSuggestionProvider)
                 .executes(CommandHandler::setLoginAction)
                 .build();
         var configLogReport = literal("report")
@@ -403,6 +501,64 @@ public class CommandHandler implements CommandRegistrationCallback {
         var configLogReportReport = argument("report", BoolArgumentType.bool())
                 .requires(Permissions.require("antiscan.config.login.report.set", 4))
                 .executes(CommandHandler::setLoginReport)
+                .build();
+        var configPing = literal("ping")
+                .requires(Permissions.require("antiscan.config.ping", 4))
+                .build();
+        var configPingMode = literal("mode")
+                .requires(Permissions.require("antiscan.config.ping.mode", 4))
+                .executes(CommandHandler::displayPingMode)
+                .build();
+        var configPingModeMode = argument("mode", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.ping.mode.set", 4))
+                .suggests(ipModeSuggestionProvider)
+                .executes(CommandHandler::setPingMode)
+                .build();
+        var configPingAction = literal("action")
+                .requires(Permissions.require("antiscan.config.ping.action", 4))
+                .executes(CommandHandler::displayPingAction)
+                .build();
+        var configPingActionAction = argument("action", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.ping.action.set", 4))
+                .suggests(actionSuggestionProvider)
+                .executes(CommandHandler::setPingAction)
+                .build();
+        var configPingReport = literal("report")
+                .requires(Permissions.require("antiscan.config.ping.report", 4))
+                .executes(CommandHandler::displayPingReport)
+                .build();
+        var configPingReportReport = argument("report", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.ping.report.set", 4))
+                .executes(CommandHandler::setPingReport)
+                .build();
+        var configQuery = literal("query")
+                .requires(Permissions.require("antiscan.config.query", 4))
+                .build();
+        var configQueryMode = literal("mode")
+                .requires(Permissions.require("antiscan.config.query.mode", 4))
+                .executes(CommandHandler::displayQueryMode)
+                .build();
+        var configQueryModeMode = argument("mode", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.query.mode.set", 4))
+                .suggests(ipModeSuggestionProvider)
+                .executes(CommandHandler::setQueryMode)
+                .build();
+        var configQueryAction = literal("action")
+                .requires(Permissions.require("antiscan.config.query.action", 4))
+                .executes(CommandHandler::displayQueryAction)
+                .build();
+        var configQueryActionAction = argument("action", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.query.action.set", 4))
+                .suggests(actionSuggestionProvider)
+                .executes(CommandHandler::setQueryAction)
+                .build();
+        var configQueryReport = literal("report")
+                .requires(Permissions.require("antiscan.config.query.report", 4))
+                .executes(CommandHandler::displayQueryReport)
+                .build();
+        var configQueryReportReport = argument("report", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.query.report.set", 4))
+                .executes(CommandHandler::setQueryReport)
                 .build();
 
         //@formatter:off
@@ -445,6 +601,20 @@ public class CommandHandler implements CommandRegistrationCallback {
                         configLoginMode.addChild(configLoginModeMode);
                     configLogin.addChild(configLogReport);
                         configLogReport.addChild(configLogReportReport);
+                config.addChild(configQuery);
+                    configQuery.addChild(configQueryAction);
+                        configQueryAction.addChild(configQueryActionAction);
+                    configQuery.addChild(configQueryMode);
+                        configQueryMode.addChild(configQueryModeMode);
+                    configQuery.addChild(configQueryReport);
+                        configQueryReport.addChild(configQueryReportReport);
+                config.addChild(configPing);
+                    configPing.addChild(configPingAction);
+                        configPingAction.addChild(configPingActionAction);
+                    configPing.addChild(configPingMode);
+                        configPingMode.addChild(configPingModeMode);
+                    configPing.addChild(configPingReport);
+                        configPingReport.addChild(configPingReportReport);
         //@formatter:on
     }
 }
