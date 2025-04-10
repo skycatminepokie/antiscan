@@ -256,6 +256,7 @@ public class Config {
         MATCH_BOTH("match_both"),
         MATCH_IP("match_ip"),
         MATCH_NAME("match_name"),
+        MATCH_EITHER("match_either"),
         MATCH_NONE("match_none");
 
         public static final Codec<NameIpMode> CODEC = StringIdentifiable.createCodec(NameIpMode::values);
@@ -276,6 +277,7 @@ public class Config {
                 case "match_both" -> MATCH_BOTH;
                 case "match_ip" -> MATCH_IP;
                 case "match_name" -> MATCH_NAME;
+                case "match_either" -> MATCH_EITHER;
                 case "match_none" -> MATCH_NONE;
                 default -> throw new IllegalStateException("Unexpected value: " + id);
             };
