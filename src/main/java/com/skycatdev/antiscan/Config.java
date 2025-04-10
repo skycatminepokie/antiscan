@@ -287,6 +287,14 @@ public class Config {
         public String asString() {
             return id;
         }
+
+        public static IpMode fromId(String id) {
+            return switch (id) {
+                case "match_ip" -> MATCH_IP;
+                case "match_all" -> MATCH_ALL;
+                default -> MATCH_NONE;
+            };
+        }
     }
 
     public enum Action implements StringIdentifiable {
@@ -304,6 +312,14 @@ public class Config {
         @Override
         public String asString() {
             return id;
+        }
+
+        public static Action fromId(String id) {
+            return switch (id) {
+                case "disconnect" -> DISCONNECT;
+                case "tarpit" -> TARPIT;
+                default -> NOTHING;
+            };
         }
     }
 }

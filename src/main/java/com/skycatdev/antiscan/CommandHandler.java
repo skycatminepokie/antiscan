@@ -3,6 +3,7 @@ package com.skycatdev.antiscan;
 import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
+import com.mojang.brigadier.arguments.BoolArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -11,11 +12,13 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.command.CommandRegistryAccess;
+import net.minecraft.command.CommandSource;
 import net.minecraft.command.argument.GameProfileArgumentType;
 import net.minecraft.server.command.CommandManager.RegistrationEnvironment;
 import net.minecraft.server.command.ServerCommandSource;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
@@ -26,6 +29,7 @@ public class CommandHandler implements CommandRegistrationCallback {
     public static final DynamicCommandExceptionType FAILED_TO_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to blacklist %s.", name));
     public static final DynamicCommandExceptionType FAILED_TO_UN_BLACKLIST = new DynamicCommandExceptionType(name -> () -> String.format("Failed to un-blacklist %s.", name));
     public static final SimpleCommandExceptionType FAILED_TO_SET_KEY = new SimpleCommandExceptionType(() -> "Failed to set key!");
+    public static final SimpleCommandExceptionType FAILED_TO_SET_CONFIG = new SimpleCommandExceptionType(() -> "Failed to set config!");
 
     private static int blacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
@@ -83,6 +87,21 @@ public class CommandHandler implements CommandRegistrationCallback {
         return finalBlacklisted;
     }
 
+    private static int displayHandshakeAction(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Handshake action is %s.", AntiScan.CONFIG.getHandshakeAction().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayHandshakeMode(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Handshake mode is %s.", AntiScan.CONFIG.getHandshakeMode().asString())), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayHandshakeReport(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isHandshakeReport() ? "on" : "off")), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int forceUpdateIpBlacklist(CommandContext<ServerCommandSource> context) {
         AntiScan.IP_CHECKER.updateNow(AntiScan.IP_CHECKER_FILE);
         context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated."), true);
@@ -121,6 +140,46 @@ public class CommandHandler implements CommandRegistrationCallback {
         return names;
     }
 
+    private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_KEY.create();
+        }
+        context.getSource().sendFeedback(() -> Utils.textOf("Set! Make sure to clear your command history (including the file!) or terminal."), false);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setHandshakeAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setHandshakeAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayHandshakeAction(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setHandshakeMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setHandshakeMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayHandshakeMode(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setHandshakeReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setHandshakeReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayHandshakeReport(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
@@ -152,16 +211,6 @@ public class CommandHandler implements CommandRegistrationCallback {
     private static int updateIpBlacklist(CommandContext<ServerCommandSource> context) {
         AntiScan.IP_CHECKER.update(TimeUnit.HOURS.toMillis(5), AntiScan.IP_CHECKER_FILE);
         context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated if it has not been updated in the last 5 hours. Add \"force\" to do it now."), true);
-        return Command.SINGLE_SUCCESS;
-    }
-
-    private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        try {
-            AntiScan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.CONFIG_FILE);
-        } catch (IOException e) {
-            throw FAILED_TO_SET_KEY.create();
-        }
-        context.getSource().sendFeedback(() -> Utils.textOf("Set! Make sure to clear your command history (including the file!) or terminal."), false);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -244,12 +293,44 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.name.blacklist.list", 3))
                 .executes(CommandHandler::listBlacklistedNames)
                 .build();
-        var setAbuseIpdbKey = literal("setAbuseIpdbKey")
-                .requires(Permissions.require("antiscan.setAbuseIpdbKey", 4))
+        var config = literal("config")
+                .requires(Permissions.require("antiscan.config", 4))
                 .build();
-        var setAbuseIpdbKeyKey = argument("key", StringArgumentType.string())
-                .requires(Permissions.require("antiscan.setAbuseIpdbKey", 4))
+        var configAbuseIpdbKey = literal("abuseIpdbKey")
+                .requires(Permissions.require("antiscan.config.abuseIpdbKey", 4))
+                .build();
+        var configAbuseIpdbKeyKey = argument("key", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.abuseIpdbKey", 4))
                 .executes(CommandHandler::setAbuseIpdbKey)
+                .build();
+        var configHandshake = literal("handshake")
+                .requires(Permissions.require("antiscan.config.handshake", 4))
+                .build();
+        var configHandshakeMode = literal("mode")
+                .requires(Permissions.require("antiscan.config.handshake.mode", 4))
+                .executes(CommandHandler::displayHandshakeMode)
+                .build();
+        var configHandshakeModeMode = argument("mode", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.handshake.mode.set", 4))
+                .suggests((context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.IpMode.values()).map(Config.IpMode::asString), builder))
+                .executes(CommandHandler::setHandshakeMode)
+                .build();
+        var configHandshakeAction = literal("action")
+                .requires(Permissions.require("antiscan.config.handshake.action", 4))
+                .executes(CommandHandler::displayHandshakeAction)
+                .build();
+        var configHandshakeActionAction = argument("action", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.config.handshake.action.set", 4))
+                .suggests((context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder))
+                .executes(CommandHandler::setHandshakeAction)
+                .build();
+        var configHandshakeReport = literal("report")
+                .requires(Permissions.require("antiscan.config.handshake.report", 4))
+                .executes(CommandHandler::displayHandshakeReport)
+                .build();
+        var configHandshakeReportReport = argument("report", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.handshake.report.set", 4))
+                .executes(CommandHandler::setHandshakeReport)
                 .build();
 
         //@formatter:off
@@ -275,8 +356,16 @@ public class CommandHandler implements CommandRegistrationCallback {
                     nameBlacklist.addChild(nameBlacklistCheck);
                         nameBlacklistCheck.addChild(nameBlacklistCheckName);
                     nameBlacklist.addChild(nameBlacklistList);
-            antiScan.addChild(setAbuseIpdbKey);
-                setAbuseIpdbKey.addChild(setAbuseIpdbKeyKey);
+            antiScan.addChild(config);
+                config.addChild(configAbuseIpdbKey);
+                    configAbuseIpdbKey.addChild(configAbuseIpdbKeyKey);
+                config.addChild(configHandshake);
+                    configHandshake.addChild(configHandshakeAction);
+                        configHandshakeAction.addChild(configHandshakeActionAction);
+                    configHandshake.addChild(configHandshakeMode);
+                        configHandshakeMode.addChild(configHandshakeModeMode);
+                    configHandshake.addChild(configHandshakeReport);
+                        configHandshakeReport.addChild(configHandshakeReportReport);
         //@formatter:on
     }
 }
