@@ -65,7 +65,7 @@ public class Config {
         this.handshakeMode = IpMode.MATCH_NONE;
         this.handshakeAction = Action.NOTHING;
         this.handshakeReport = false;
-        this.loginMode = NameIpMode.MATCH_NAME;
+        this.loginMode = NameIpMode.MATCH_EITHER;
         this.loginAction = Action.TARPIT;
         this.loginReport = true;
         this.queryMode = IpMode.MATCH_NONE;
