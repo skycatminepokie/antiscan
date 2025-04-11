@@ -4,7 +4,22 @@ plugins {
 
 stonecutter.active "1.21.5" /* [SC] DO NOT EDIT */
 
-stonecutter.registerChiseled tasks.register("chiseledBuild", stonecutter.chiseled) { 
+stonecutter.registerChiseled tasks.register("chiseledBuild", stonecutter.chiseled) {
     setGroup "project"
     ofTask "build"
+}
+
+stonecutter.registerChiseled tasks.register("chiseledBuildAndCollect", stonecutter.chiseled) {
+    setGroup "project"
+    ofTask "buildAndCollect"
+}
+
+stonecutter.registerChiseled tasks.register("chiseledPublishMods", stonecutter.chiseled) {
+    setGroup "project"
+    ofTask "publishMods"
+}
+
+stonecutter.registerChiseled tasks.register("chiseledRunDatagen", stonecutter.chiseled) {
+    setGroup "project"
+    ofTask "runDatagen"
 }
