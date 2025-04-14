@@ -59,9 +59,21 @@ dependencies {
 
 processResources {
 	inputs.property "version", fullVersion
+	inputs.property "fabric_version", fabric_version
+	inputs.property "loader_version", loader_version
+	inputs.property "java", stonecutter.eval(mcVersion, ">=1.20.5") ? "21" : "17"
+	inputs.property "minecraft", mcVersion
+
+	def map = [
+			"version"       : fullVersion,
+			"fabric_version": fabric_version,
+			"loader_version": loader_version,
+			"java"          : stonecutter.eval(mcVersion, ">=1.20.5") ? "21" : "17",
+			"minecraft"     : mcVersion.toString()
+	]
 
 	filesMatching("fabric.mod.json") {
-		expand "version": fullVersion
+		expand(map)
 	}
 }
 
