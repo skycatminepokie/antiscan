@@ -27,16 +27,19 @@ public class IpChecker {
     public static final Codec<IpChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("blacklistCache").forGetter(IpChecker::getBlacklistCache),
             Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
-            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist)
+            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist),
+            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("whitelistCache").forGetter(IpChecker::getWhitelistCache)
     ).apply(instance, IpChecker::new));
     protected final Set<String> blacklistCache;
     protected final Set<String> manualBlacklist;
+    protected final Set<String> whitelistCache;
     protected long lastUpdated;
 
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist) {
+    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
         this.manualBlacklist = manualBlacklist;
+        this.whitelistCache = whitelistCache;
     }
 
     private static <T> @NotNull Set<T> listToConcurrentSet(List<T> list) {
@@ -55,13 +58,13 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet());
         }
     }
 
@@ -96,7 +99,7 @@ public class IpChecker {
      * @return True if the ip is deemed malicious (or on failure)
      */
     public boolean checkAbuseIpdb(String ip) {
-        if (AntiScan.CONFIG.getAbuseIpdbKey() == null) {
+        if (AntiScan.CONFIG.getAbuseIpdbKey() == null || whitelistCache.contains(ip)) {
             return false;
         }
         AntiScan.LOGGER.info("Checking ip '{}'", ip);
@@ -129,18 +132,22 @@ public class IpChecker {
                     boolean safe = json.getAsJsonObject().get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt() < 90;
                     if (!safe) {
                         blacklistCache.add(ip);
+                    } else {
+                        whitelistCache.add(ip);
                     }
                     return safe;
+                } else {
+                    AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was JSON null. This is NOT a fatal error.");
+                    return false;
                 }
             } else {
                 AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
-                return true;
+                return false;
             }
         } else {
             AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
-            return true;
+            return false;
         }
-        return true;
     }
 
     protected boolean fetchFromAbuseIpdb(String apiKey) {
@@ -217,6 +224,10 @@ public class IpChecker {
         return manualBlacklist;
     }
 
+    private Set<String> getWhitelistCache() {
+        return whitelistCache;
+    }
+
     public boolean isBlacklisted(String ip) {
         return blacklistCache.contains(ip) || manualBlacklist.contains(ip) || checkAbuseIpdb(ip);
     }
@@ -225,34 +236,6 @@ public class IpChecker {
         FutureTask<Boolean> future = new FutureTask<>(() -> reportNow(ip, comment, categories));
         new Thread(future, "AntiScan Reporting").start();
         return future;
-    }
-
-    public boolean unBlacklist(String ip, boolean manual, @Nullable File saveFile) throws IOException {
-        boolean removed;
-        if (manual) {
-            removed = manualBlacklist.remove(ip);
-        } else {
-            removed = blacklistCache.remove(ip);
-        }
-        if (removed && saveFile != null) {
-            save(saveFile);
-        }
-        return removed;
-    }
-
-    public Future<Boolean> update(long cooldown) {
-        return update(cooldown, null);
-    }
-
-    public Future<Boolean> update(long cooldown, @Nullable File saveFile) {
-        if (System.currentTimeMillis() - lastUpdated > cooldown) {
-            return updateNow(saveFile);
-        }
-        return CompletableFuture.completedFuture(Boolean.FALSE);
-    }
-
-    public Future<Boolean> updateNow() {
-        return updateNow(null);
     }
 
     public boolean reportNow(String ip, String comment, int[] categories) {
@@ -307,9 +290,38 @@ public class IpChecker {
         }
     }
 
+    public boolean unBlacklist(String ip, boolean manual, @Nullable File saveFile) throws IOException {
+        boolean removed;
+        if (manual) {
+            removed = manualBlacklist.remove(ip);
+        } else {
+            removed = blacklistCache.remove(ip);
+        }
+        if (removed && saveFile != null) {
+            save(saveFile);
+        }
+        return removed;
+    }
+
+    public Future<Boolean> update(long cooldown) {
+        return update(cooldown, null);
+    }
+
+    public Future<Boolean> update(long cooldown, @Nullable File saveFile) {
+        if (System.currentTimeMillis() - lastUpdated > cooldown) {
+            return updateNow(saveFile);
+        }
+        return CompletableFuture.completedFuture(Boolean.FALSE);
+    }
+
+    public Future<Boolean> updateNow() {
+        return updateNow(null);
+    }
+
     public Future<Boolean> updateNow(@Nullable File saveFile) {
         lastUpdated = System.currentTimeMillis();
         AntiScan.LOGGER.info("Updating blacklisted IPs.");
+        whitelistCache.clear();
         FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
         FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
             if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
