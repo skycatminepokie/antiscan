@@ -1,17 +1,16 @@
 package com.skycatdev.antiscan;
 
-import com.google.gson.FormattingStyle;
-import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
-import com.google.gson.stream.JsonWriter;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.StringIdentifiable;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.*;
+import java.io.File;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.Optional;
 
 public class Config {
@@ -148,16 +147,7 @@ public class Config {
     }
 
     protected void save(File file) throws IOException {
-        if (!file.exists()) {
-            if (file.isDirectory() || !file.createNewFile()) {
-                throw new FileNotFoundException();
-            }
-        }
-        JsonElement json = CODEC.encode(this, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
-        try (JsonWriter writer = new JsonWriter(new PrintWriter(file))) {
-            writer.setFormattingStyle(FormattingStyle.PRETTY);
-            Streams.write(json, writer);
-        }
+        Utils.saveToFile(this, file, CODEC);
     }
 
     public void setAbuseIpdbKey(@Nullable String abuseIpdbKey, @Nullable File saveFile) throws IOException {
