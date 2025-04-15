@@ -69,7 +69,7 @@ processResources {
 			"fabric_version": fabric_version,
 			"loader_version": loader_version,
 			"java"          : stonecutter.eval(mcVersion, ">=1.20.5") ? "21" : "17",
-			"minecraft"     : mcVersion.toString()
+			"minecraft": mcVersion.toString().equals("25w14craftmine") ? "1.21.6-alpha.25.14.craftmine" : mcVersion.toString() // TODO: This is a band-aid
 	]
 
 	filesMatching("fabric.mod.json") {
