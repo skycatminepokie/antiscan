@@ -1,6 +1,6 @@
 package com.skycatdev.antiscan;
 
-//? if >=1.21.5 {
+//? if >=1.21.5
 
 import com.google.gson.FormattingStyle;
 import com.google.gson.JsonElement;
@@ -19,14 +19,6 @@ import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 
 public class Utils {
-    public static Text textOf(String text) {
-        return Text.literal(text);
-    }
-
-    public static Text translatable(String key, Object... args) {
-        return Text.translatable(key, args);
-    }
-
     public static void handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
         @Nullable String hostString = null;
         if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
@@ -78,5 +70,13 @@ public class Utils {
             /*writer.setIndent("  ");*/
             Streams.write(json, writer);
         }
+    }
+
+    public static Text textOf(String text) {
+        return Text.literal(text);
+    }
+
+    public static Text translatable(String key, Object... args) {
+        return Text.translatable(key, args);
     }
 }
