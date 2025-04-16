@@ -20,6 +20,7 @@ import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
 import java.util.stream.Collectors;
@@ -30,17 +31,19 @@ public class IpChecker {
             Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
             Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist),
             Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("whitelistCache").forGetter(IpChecker::getWhitelistCache)
-    ).apply(instance, IpChecker::new));
+    ).apply(instance, (blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1) -> new IpChecker(blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1, new ConcurrentHashMap<>())));
     protected final Set<String> blacklistCache;
     protected final Set<String> manualBlacklist;
     protected final Set<String> whitelistCache;
     protected long lastUpdated;
+    protected final transient Map<String, Long> reportingCache;
 
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache) {
+    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache, ConcurrentHashMap<String, Long> reportingCache) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
         this.manualBlacklist = manualBlacklist;
         this.whitelistCache = whitelistCache;
+        this.reportingCache = reportingCache;
     }
 
     private static <T> @NotNull Set<T> listToConcurrentSet(List<T> list) {
@@ -59,13 +62,13 @@ public class IpChecker {
     public static IpChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet());
+            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
     }
 
@@ -240,7 +243,11 @@ public class IpChecker {
     }
 
     public boolean reportNow(String ip, String comment, int[] categories) {
-        if (AntiScan.CONFIG.getAbuseIpdbKey() != null && !ip.equals("127.0.0.1") && ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}")) {
+        if (AntiScan.CONFIG.getAbuseIpdbKey() != null &&
+            !ip.equals("127.0.0.1") &&
+            ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}") &&
+            System.currentTimeMillis() - reportingCache.getOrDefault(ip, 0L) > TimeUnit.MINUTES.toMillis(15)) {
+            reportingCache.put(ip, System.currentTimeMillis());
             HttpResponse<String> response;
             try (HttpClient client = HttpClient.newHttpClient()) {
                 HttpRequest request = HttpRequest.newBuilder()
