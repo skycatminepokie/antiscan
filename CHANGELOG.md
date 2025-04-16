@@ -1,1 +1,1 @@
-- Added icon
+- Update IP blacklist every five hours
