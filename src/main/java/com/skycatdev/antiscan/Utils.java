@@ -1,8 +1,8 @@
 package com.skycatdev.antiscan;
 
-//? if >=1.21.5
-
+//? if >=1.21.5 {
 import com.google.gson.FormattingStyle;
+//? }
 import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonWriter;
