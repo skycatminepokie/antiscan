@@ -258,7 +258,7 @@ public class IpChecker {
                                         Arrays.stream(categories)
                                                 .mapToObj(String::valueOf)
                                                 .collect(Collectors.joining(",")),
-                                        comment.replaceAll("\\w", "+"))))
+                                        comment.replaceAll("\\W", "+"))))
                         .setHeader("Key", AntiScan.CONFIG.getAbuseIpdbKey())
                         .setHeader("Accept", "application/json")
                         .setHeader("Content-Type", "application/x-www-form-urlencoded")

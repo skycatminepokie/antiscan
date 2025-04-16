@@ -1,2 +1,3 @@
 - Added manual reporting
 - Added a cooldown so reports aren't spammed
+- Fixed report comments being weird
