@@ -1,8 +1,8 @@
 package com.skycatdev.antiscan;
 
 //? if >=1.21.5 {
+
 import com.google.gson.FormattingStyle;
-//? }
 import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonWriter;
@@ -10,6 +10,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.text.Text;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -27,12 +28,16 @@ public class Utils {
     }
 
     public static void handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
+        @Nullable String hostString = null;
+        if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
+            hostString = inetSocketAddress.getHostString();
+        }
         boolean good = switch (mode) {
             case MATCH_NONE -> true;
             case MATCH_ALL -> false;
             case MATCH_IP -> {
-                if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString());
+                if (hostString != null) {
+                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(hostString);
                 }
                 yield connection.isLocal();
             }
@@ -43,16 +48,18 @@ public class Utils {
         } else {
             switch (action) {
                 case NOTHING -> allow.run();
-                case TARPIT -> {
+                case TARPIT -> AntiScan.LOGGER.info("Tarpitting {}.", hostString == null ? "connection" : hostString);
+                case DISCONNECT -> {
+                    AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                    connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
                 }
-                case DISCONNECT -> connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
                 default -> {
                     AntiScan.LOGGER.error("Impossible case -action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
                     allow.run();
                 }
             }
-            if (report && connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-                AntiScan.IP_CHECKER.report(inetSocketAddress.getHostString(), "Unsolicited connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
+            if (report && hostString != null) {
+                AntiScan.IP_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
             }
         }
     }

@@ -1,1 +1,2 @@
 - Update IP blacklist every five hours
+- Logging for tarpitting
