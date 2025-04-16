@@ -187,6 +187,12 @@ public class CommandHandler implements CommandRegistrationCallback {
         return names;
     }
 
+    private static int reportIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        AntiScan.IP_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
+        context.getSource().sendFeedback(() -> Utils.textOf("Report sent."), true);
+        return Command.SINGLE_SUCCESS;
+    }
+
     private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             AntiScan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.CONFIG_FILE);
@@ -560,6 +566,13 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.config.query.report.set", 4))
                 .executes(CommandHandler::setQueryReport)
                 .build();
+        var report = literal("report")
+                .requires(Permissions.require("antiscan.report", 4))
+                .build();
+        var reportIp = argument("ip", StringArgumentType.string())
+                .requires(Permissions.require("antiscan.report", 4))
+                .executes(CommandHandler::reportIp)
+                .build();
 
         //@formatter:off
         dispatcher.getRoot().addChild(antiScan);
@@ -615,6 +628,8 @@ public class CommandHandler implements CommandRegistrationCallback {
                         configPingMode.addChild(configPingModeMode);
                     configPing.addChild(configPingReport);
                         configPingReport.addChild(configPingReportReport);
+            antiScan.addChild(report);
+                report.addChild(reportIp);
         //@formatter:on
     }
 }

@@ -1,1 +1,1 @@
-- The beginning!
+- Added manual reporting

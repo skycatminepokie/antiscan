@@ -45,3 +45,4 @@ the Multiplayer screen.
 | `antiscan config [handshake/login/ping/query] action <action>`     | Set the action for handling blocked handshakes/login/pings/queries | `"antiscan.config.handshake/login/ping/query.action.set"` | OP Level 4 |
 | `antiscan config [handshake/login/ping/query] report`              | Get if blocked handshakes/login/pings/queries are reported         | `"antiscan.config.handshake/login/ping/query.report"`     | OP Level 4 |
 | `antiscan config [handshake/login/ping/query] report <true/false>` | Set if blocked handshakes/login/pings/queries are reported         | `"antiscan.config.handshake/login/ping/query.report.set"` | OP Level 4 |
+| `antiscan report <ip>`                                             | Send a report to AbuseIPDB for port scanning                       | `"antiscan.report"`                                       | OP Level 4 |
