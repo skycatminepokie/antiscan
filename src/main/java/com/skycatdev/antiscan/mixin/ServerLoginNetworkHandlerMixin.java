@@ -25,7 +25,7 @@ public abstract class ServerLoginNetworkHandlerMixin {
             case MATCH_EITHER -> {
                 if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
                     yield connection.isLocal() ||
-                          !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName()) ||
+                          !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString()) ||
                           !AntiScan.NAME_CHECKER.isBlacklisted(packet.name());
                 }
                 yield connection.isLocal() || !AntiScan.NAME_CHECKER.isBlacklisted(packet.name());
@@ -35,13 +35,13 @@ public abstract class ServerLoginNetworkHandlerMixin {
             case MATCH_BOTH -> {
                 if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
                     yield connection.isLocal() ||
-                          !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName()) && !AntiScan.NAME_CHECKER.isBlacklisted(packet.name());
+                          !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString()) && !AntiScan.NAME_CHECKER.isBlacklisted(packet.name());
                 }
                 yield connection.isLocal() && !AntiScan.NAME_CHECKER.isBlacklisted(packet.name());
             }
             case MATCH_IP -> {
                 if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName());
+                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString());
                 }
                 yield connection.isLocal();
             }

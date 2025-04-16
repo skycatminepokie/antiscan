@@ -32,7 +32,7 @@ public class Utils {
             case MATCH_ALL -> false;
             case MATCH_IP -> {
                 if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostName());
+                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString());
                 }
                 yield connection.isLocal();
             }
