@@ -36,7 +36,16 @@ loom {
 		ideConfigGenerated true
 	}
 
+	runs {
+		gametest {
+			server()
+			name "Game Test"
+			vmArg "-Dfabric-api.gametest"
+		}
+	}
 }
+
+test.dependsOn runGametest
 
 fabricApi {
 	configureDataGeneration {

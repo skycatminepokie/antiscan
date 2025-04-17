@@ -22,6 +22,9 @@
 		],
 		"fabric-datagen": [
 			"com.skycatdev.antiscan.AntiScanDataGenerator"
+		],
+		"fabric-gametest": [
+			"com.skycatdev.antiscan.test.GameTests"
 		]
 	},
 	"mixins": [
