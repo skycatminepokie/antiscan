@@ -4,13 +4,11 @@ import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
 import java.net.URI;
@@ -54,9 +52,7 @@ public class IpChecker {
 
     public static IpChecker load(File saveFile) throws IOException {
         AntiScan.LOGGER.info("Loading ip blacklist.");
-        try (JsonReader reader = new JsonReader(new FileReader(saveFile))) {
-            return CODEC.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow().getFirst();
-        }
+        return Utils.loadFromFile(saveFile, CODEC);
     }
 
     public static IpChecker loadOrCreate(File saveFile) {
@@ -108,7 +104,10 @@ public class IpChecker {
         }
         AntiScan.LOGGER.info("Checking ip '{}'", ip);
         HttpResponse<String> response;
+        //? if >=1.20.5
         try (HttpClient client = HttpClient.newHttpClient()) {
+            //? if <1.20.5
+            /*HttpClient client = HttpClient.newHttpClient();*/
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
                     .GET()
@@ -122,6 +121,7 @@ public class IpChecker {
                 AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
                 return false;
             }
+        //? if >=1.20.5
         }
         if (response != null) {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -157,7 +157,10 @@ public class IpChecker {
     protected boolean fetchFromAbuseIpdb(String apiKey) {
         HttpResponse<String> response;
         // https://curlconverter.com/java/
+        //? if >=1.20.5
         try (HttpClient client = HttpClient.newHttpClient()) {
+        //? if <1.20.5
+        /*HttpClient client = HttpClient.newHttpClient();*/
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://api.abuseipdb.com/api/v2/blacklist?confidenceMinimum=90"))
                     .GET()
@@ -171,6 +174,7 @@ public class IpChecker {
                 AntiScan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. This is NOT a fatal error.", e);
                 return false;
             }
+        //? if >=1.20.5
         }
         if (response != null) {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -189,7 +193,10 @@ public class IpChecker {
     protected boolean fetchFromHunter() {
         HttpResponse<String> response;
         // https://curlconverter.com/java/
+        //? if >=1.20.5
         try (HttpClient client = HttpClient.newHttpClient()) {
+        //? if <1.20.5
+        /*HttpClient client = HttpClient.newHttpClient();*/
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create("https://raw.githubusercontent.com/pebblehost/hunter/refs/heads/master/ips.txt"))
                     .GET()
@@ -201,6 +208,7 @@ public class IpChecker {
                 AntiScan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error.", e);
                 return false;
             }
+        //? if >=1.20.5
         }
         if (response != null) {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
@@ -249,7 +257,10 @@ public class IpChecker {
             System.currentTimeMillis() - reportingCache.getOrDefault(ip, 0L) > TimeUnit.MINUTES.toMillis(15)) {
             reportingCache.put(ip, System.currentTimeMillis());
             HttpResponse<String> response;
+            //? if >=1.20.5
             try (HttpClient client = HttpClient.newHttpClient()) {
+            //? if <1.20.5
+            /*HttpClient client = HttpClient.newHttpClient();*/
                 HttpRequest request = HttpRequest.newBuilder()
                         .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
                         .POST(HttpRequest.BodyPublishers.ofString(
@@ -269,6 +280,7 @@ public class IpChecker {
                     AntiScan.LOGGER.warn("Failed to report IP. This is NOT a fatal error.", e);
                     return false;
                 }
+            //? if >=1.20.5
             }
             if (response != null) {
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {

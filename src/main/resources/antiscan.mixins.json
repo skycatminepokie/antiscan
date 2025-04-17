@@ -1,7 +1,10 @@
 {
   "required": true,
   "package": "com.skycatdev.antiscan.mixin",
+  //? if >=1.20.5
   "compatibilityLevel": "JAVA_21",
+  //? if <1.20.5
+  /*"compatibilityLevel": "JAVA_17",*/
   "mixins": [
     "ServerHandshakeNetworkHandlerMixin",
     "ServerLoginNetworkHandlerMixin",

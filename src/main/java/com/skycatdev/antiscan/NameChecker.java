@@ -1,14 +1,10 @@
 package com.skycatdev.antiscan;
 
-import com.google.gson.internal.Streams;
-import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,9 +26,7 @@ public class NameChecker {
 
     public static NameChecker load(File saveFile) throws IOException {
         AntiScan.LOGGER.info("Loading username blacklist.");
-        try (JsonReader reader = new JsonReader(new FileReader(saveFile))) {
-            return CODEC.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow().getFirst();
-        }
+        return Utils.loadFromFile(saveFile, CODEC);
     }
 
     public static NameChecker loadOrCreate(File saveFile) {

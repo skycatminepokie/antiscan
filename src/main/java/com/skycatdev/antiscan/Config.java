@@ -1,15 +1,11 @@
 package com.skycatdev.antiscan;
 
-import com.google.gson.internal.Streams;
-import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.JsonOps;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.util.StringIdentifiable;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -76,9 +72,7 @@ public class Config {
     }
 
     public static Config load(File saveFile) throws IOException {
-        try (JsonReader reader = new JsonReader(new FileReader(saveFile))) {
-            return CODEC.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow().getFirst();
-        }
+        return Utils.loadFromFile(saveFile, CODEC);
     }
 
     public static Config loadOrCreate(File saveFile) {
