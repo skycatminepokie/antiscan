@@ -1,2 +1,3 @@
 - Update IP blacklist every five hours
 - Logging for tarpitting
+- Support for 1.20.5 and 1.20.6

@@ -3,6 +3,10 @@ package com.skycatdev.antiscan.test;
 //? if >=1.21.5
 
 import net.fabricmc.fabric.api.gametest.v1.GameTest;
+//? if <1.21.5 {
+/*import net.fabricmc.fabric.api.gametest.v1.FabricGameTest;
+import net.minecraft.test.GameTest;
+*///?}
 import net.minecraft.test.TestContext;
 import org.spongepowered.asm.mixin.MixinEnvironment;
 
