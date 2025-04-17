@@ -11,8 +11,6 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.JsonOps;
 import net.minecraft.network.ClientConnection;
 import net.minecraft.text.Text;
-//? if <1.21.5
-/*import org.apache.commons.lang3.function.Consumers;*/
 import org.jetbrains.annotations.Nullable;
 
 import java.io.*;
@@ -67,7 +65,7 @@ public class Utils {
         json = codec.encode(t, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(IOException::new);
         //? if <1.20.5 {
         /*try {
-            json = codec.encode(t, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(false, Consumers.nop());
+            json = codec.encode(t, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow(false, str -> {});
         } catch (RuntimeException e) {
             throw new IOException(e);
         }
@@ -87,7 +85,7 @@ public class Utils {
             return codec.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow().getFirst();
             //? if <1.20.5 {
             /*try {
-                return codec.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow(false, Consumers.nop()).getFirst();
+                return codec.decode(JsonOps.INSTANCE, Streams.parse(reader)).getOrThrow(false, str -> {}).getFirst();
             } catch (RuntimeException e) {
                 throw new IOException(e);
             }

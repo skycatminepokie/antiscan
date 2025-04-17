@@ -18,7 +18,10 @@ public abstract class ServerQueryNetworkHandlerMixin {
     @Final
     private ClientConnection connection;
 
+    //? if >=1.20.2
     @WrapMethod(method = "onQueryPing")
+    //? if <1.20.2
+    /*@WrapMethod(method = "onPing")*/
     private void antiScan$tarpitBaddiesPing(QueryPingC2SPacket packet, Operation<Void> original) {
         Utils.handleIpConnection(AntiScan.CONFIG.getPingMode(), AntiScan.CONFIG.getPingAction(), AntiScan.CONFIG.isPingReport(), connection, () -> original.call(packet));
     }

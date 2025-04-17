@@ -23,3 +23,8 @@ stonecutter.registerChiseled tasks.register("chiseledRunDatagen", stonecutter.ch
     setGroup "project"
     ofTask "runDatagen"
 }
+
+stonecutter.registerChiseled tasks.register("chiseledRunGametest", stonecutter.chiseled) {
+    setGroup "project"
+    ofTask "runGametest"
+}
