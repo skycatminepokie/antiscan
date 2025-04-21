@@ -11,7 +11,7 @@ import java.util.Optional;
 
 public class Config {
     public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.STRING.optionalFieldOf("abuseIpdbKey").xmap(opt -> opt.orElse(null), Optional::ofNullable).forGetter(Config::getAbuseIpdbKey),
+            Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(config -> Optional.ofNullable(config.getAbuseIpdbKey())),
             IpMode.CODEC.fieldOf("handshakeMode").forGetter(Config::getHandshakeMode),
             Action.CODEC.fieldOf("handshakeAction").forGetter(Config::getHandshakeAction),
             Codec.BOOL.fieldOf("handshakeReport").forGetter(Config::isHandshakeReport),
@@ -38,6 +38,22 @@ public class Config {
     protected IpMode pingMode;
     protected Action pingAction;
     protected boolean pingReport;
+
+    public Config(@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<String> abuseIpdbKey, IpMode handshakeMode, Action handshakeAction, boolean handshakeReport, NameIpMode loginMode, Action loginAction, boolean loginReport, IpMode queryMode, Action queryAction, boolean queryReport, IpMode pingMode, Action pingAction, boolean pingReport) {
+        this.abuseIpdbKey = abuseIpdbKey.orElse(null);
+        this.handshakeMode = handshakeMode;
+        this.handshakeAction = handshakeAction;
+        this.handshakeReport = handshakeReport;
+        this.loginMode = loginMode;
+        this.loginAction = loginAction;
+        this.loginReport = loginReport;
+        this.queryMode = queryMode;
+        this.queryAction = queryAction;
+        this.queryReport = queryReport;
+        this.pingMode = pingMode;
+        this.pingAction = pingAction;
+        this.pingReport = pingReport;
+    }
 
     public Config(@Nullable String abuseIpdbKey, IpMode handshakeMode, Action handshakeAction, boolean handshakeReport, NameIpMode loginMode, Action loginAction, boolean loginReport, IpMode queryMode, Action queryAction, boolean queryReport, IpMode pingMode, Action pingAction, boolean pingReport) {
         this.abuseIpdbKey = abuseIpdbKey;

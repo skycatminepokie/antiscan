@@ -1,3 +1,1 @@
-- Update IP blacklist every five hours
-- Logging for tarpitting
-- Support for 1.20-1.20.6
+- Fix failure to launch on the second try
