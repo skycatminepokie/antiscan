@@ -187,6 +187,7 @@ public class IpChecker {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB - response was null. This is NOT a fatal error.");
             return false;
         }
+        AntiScan.LOGGER.info("Updated IP blacklist from AbuseIPDB.");
         return true;
     }
 
@@ -221,6 +222,7 @@ public class IpChecker {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from hunter - response was null. This is NOT a fatal error.");
             return false;
         }
+        AntiScan.LOGGER.info("Updated IP blacklist from Hunter.");
         return true;
     }
 
