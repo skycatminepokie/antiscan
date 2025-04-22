@@ -38,11 +38,27 @@ public class AntiScan implements ModInitializer, ServerTickEvents.StartTick {
         }
     }
 
+    private static void updateBlacklistLoop(long delay) {
+        new Thread(() -> {
+            try {
+                Thread.sleep(delay);
+            } catch (InterruptedException ignored) {
+            } finally {
+                try {
+                    IP_CHECKER.update(DEFAULT_BLACKLIST_UPDATE_COOLDOWN, IP_CHECKER_FILE);
+                } finally {
+                    updateBlacklistLoop(delay);
+                }
+            }
+        }, "AntiScan Update Waiter").start();
+    }
+
     @Override
     public void onInitialize() {
         IP_CHECKER.update(DEFAULT_BLACKLIST_UPDATE_COOLDOWN, IP_CHECKER_FILE);
         CommandRegistrationCallback.EVENT.register(new CommandHandler());
         ServerTickEvents.START_SERVER_TICK.register(this);
+        updateBlacklistLoop(DEFAULT_BLACKLIST_UPDATE_COOLDOWN);
     }
 
     @Override

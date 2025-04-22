@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 public class IpChecker {
@@ -35,6 +37,7 @@ public class IpChecker {
     protected final Set<String> whitelistCache;
     protected long lastUpdated;
     protected final transient Map<String, Long> reportingCache;
+    protected final Lock fetchingUpdates = new ReentrantLock();
 
     protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache, ConcurrentHashMap<String, Long> reportingCache) {
         this.blacklistCache = blacklistCache;
@@ -333,32 +336,39 @@ public class IpChecker {
     }
 
     public Future<Boolean> updateNow(@Nullable File saveFile) {
-        lastUpdated = System.currentTimeMillis();
-        AntiScan.LOGGER.info("Updating blacklisted IPs.");
-        whitelistCache.clear();
-        FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
-        FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
-            if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
-                return fetchFromAbuseIpdb(AntiScan.CONFIG.getAbuseIpdbKey());
-            }
-            return false;
-        });
-        FutureTask<Boolean> finished = new FutureTask<>(() -> {
+        if (fetchingUpdates.tryLock()) {
             try {
-                boolean hunterSucceeded = hunter.get();
-                boolean abuseIpdbSucceeded = abuseIpdb.get();
-                if (saveFile != null) {
-                    save(saveFile);
-                }
-                return hunterSucceeded || abuseIpdbSucceeded;
-            } catch (InterruptedException | ExecutionException e) {
-                AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
-                return false;
+                lastUpdated = System.currentTimeMillis();
+                AntiScan.LOGGER.info("Updating blacklisted IPs.");
+                whitelistCache.clear();
+                FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
+                FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
+                    if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
+                        return fetchFromAbuseIpdb(AntiScan.CONFIG.getAbuseIpdbKey());
+                    }
+                    return false;
+                });
+                FutureTask<Boolean> finished = new FutureTask<>(() -> {
+                    try {
+                        boolean hunterSucceeded = hunter.get();
+                        boolean abuseIpdbSucceeded = abuseIpdb.get();
+                        if (saveFile != null) {
+                            save(saveFile);
+                        }
+                        return hunterSucceeded || abuseIpdbSucceeded;
+                    } catch (InterruptedException | ExecutionException e) {
+                        AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
+                        return false;
+                    }
+                });
+                new Thread(hunter, "AntiScan Hunter").start();
+                new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
+                new Thread(finished, "AntiScan Save").start();
+                return finished;
+            } finally {
+                fetchingUpdates.unlock();
             }
-        });
-        new Thread(hunter, "AntiScan Hunter").start();
-        new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
-        new Thread(finished, "AntiScan Save").start();
-        return finished;
+        }
+        return CompletableFuture.completedFuture(Boolean.FALSE);
     }
 }
