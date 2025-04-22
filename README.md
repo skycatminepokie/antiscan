@@ -10,8 +10,8 @@ conjunction with online mode and a whitelist.
 When someone attempts to connect to your server, its IP is visible. We can check that IP against trusted databases to
 decide whether to allow the connection. The **mode** is how we decide which connections are good and which are bad.
 If the **mode** *matches* the connection, then it's considered bad, and we take an **action**. An **action** can be
-doing nothing, dropping the connection, or *tarpitting* the connection. *Tarpitting* is trying to keep the other person
-waiting as long as possible so that they have to spend more time on each server they try to connect to. This helps slow
+doing nothing, dropping the connection, or timing out the connection (ignoring it until it goes away). You may choose to
+time out a connection so that scanners have to spend more time on each server they try to connect to. This helps slow
 down attackers, but it works better if more people do it. As you might imagine, this probably will make them annoyed, so
 do with that information what you will.
 

@@ -77,7 +77,7 @@ public class Config {
         this.handshakeAction = Action.NOTHING;
         this.handshakeReport = false;
         this.loginMode = NameIpMode.MATCH_EITHER;
-        this.loginAction = Action.TARPIT;
+        this.loginAction = Action.TIMEOUT;
         this.loginReport = true;
         this.queryMode = IpMode.MATCH_NONE;
         this.queryAction = Action.DISCONNECT;
@@ -314,7 +314,7 @@ public class Config {
     public enum Action implements StringIdentifiable {
         NOTHING("nothing"),
         DISCONNECT("disconnect"),
-        TARPIT("tarpit");
+        TIMEOUT("timeout");
 
         public static final Codec<Action> CODEC = StringIdentifiable.createCodec(Action::values);
         private final String id;
@@ -331,7 +331,7 @@ public class Config {
         public static Action fromId(String id) {
             return switch (id) {
                 case "disconnect" -> DISCONNECT;
-                case "tarpit" -> TARPIT;
+                case "timeout" -> TIMEOUT;
                 case "nothing" -> NOTHING;
                 default -> throw new IllegalStateException("Unexpected value: " + id);
             };

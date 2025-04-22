@@ -22,12 +22,12 @@ public abstract class ServerQueryNetworkHandlerMixin {
     @WrapMethod(method = "onQueryPing")
     //? if <1.20.2
     /*@WrapMethod(method = "onPing")*/
-    private void antiScan$tarpitBaddiesPing(QueryPingC2SPacket packet, Operation<Void> original) {
+    private void antiScan$handleBaddiesPing(QueryPingC2SPacket packet, Operation<Void> original) {
         Utils.handleIpConnection(AntiScan.CONFIG.getPingMode(), AntiScan.CONFIG.getPingAction(), AntiScan.CONFIG.isPingReport(), connection, () -> original.call(packet));
     }
 
     @WrapMethod(method = "onRequest")
-    private void antiScan$tarpitBaddiesQuery(QueryRequestC2SPacket packet, Operation<Void> original) {
+    private void antiScan$handleBaddiesQuery(QueryRequestC2SPacket packet, Operation<Void> original) {
         Utils.handleIpConnection(AntiScan.CONFIG.getQueryMode(), AntiScan.CONFIG.getQueryAction(), AntiScan.CONFIG.isQueryReport(), connection, () -> original.call(packet));
     }
 }

@@ -21,7 +21,7 @@ public abstract class ServerLoginNetworkHandlerMixin {
     ClientConnection connection;
 
     @WrapMethod(method = "onHello")
-    private void antiScan$tarpitBaddies(LoginHelloC2SPacket packet, Operation<Void> original) {
+    private void antiScan$handleBaddies(LoginHelloC2SPacket packet, Operation<Void> original) {
         @Nullable String hostString = null;
         if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
             hostString = inetSocketAddress.getHostString();
@@ -58,7 +58,7 @@ public abstract class ServerLoginNetworkHandlerMixin {
         } else {
             switch (AntiScan.CONFIG.getLoginAction()) {
                 case NOTHING -> original.call(packet);
-                case TARPIT -> AntiScan.LOGGER.info("Tarpitting {}.", hostString == null ? "connection" : hostString);
+                case TIMEOUT -> AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
                 case DISCONNECT -> {
                     AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
                     connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));

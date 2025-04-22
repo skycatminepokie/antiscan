@@ -38,7 +38,7 @@ public class Utils {
         } else {
             switch (action) {
                 case NOTHING -> allow.run();
-                case TARPIT -> AntiScan.LOGGER.info("Tarpitting {}.", hostString == null ? "connection" : hostString);
+                case TIMEOUT -> AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
                 case DISCONNECT -> {
                     AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
                     connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
