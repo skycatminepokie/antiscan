@@ -18,7 +18,6 @@
 			"com.skycatdev.antiscan.AntiScan"
 		],
 		"client": [
-			"com.skycatdev.antiscan.AntiScanClient"
 		],
 		"fabric-datagen": [
 			"com.skycatdev.antiscan.AntiScanDataGenerator"
