@@ -344,7 +344,7 @@ public class IpChecker {
     private boolean simulateUpdate(boolean success, boolean instant, Random random) {
         if (!instant) {
             try {
-                Thread.sleep(Duration.ofSeconds(random.nextInt(0, 4)));
+                Thread.sleep(TimeUnit.SECONDS.toMillis(random.nextInt(0, 4)));
             } catch (InterruptedException e) {
                 AntiScan.LOGGER.debug("Interrupted while simulating blacklist update. It will still happen.", e);
             }
