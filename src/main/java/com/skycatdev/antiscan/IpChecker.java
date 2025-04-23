@@ -5,6 +5,7 @@ import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -16,10 +17,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.*;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -99,10 +97,10 @@ public class IpChecker {
 
     /**
      * @param ip The ip to check
-     * @return True if the ip is deemed malicious (or on failure)
+     * @return {@code true} if the ip is deemed malicious, {@code false} otherwise (including a failure)
      */
     public boolean checkAbuseIpdb(String ip) {
-        if (AntiScan.CONFIG.getAbuseIpdbKey() == null || whitelistCache.contains(ip)) {
+        if (AntiScan.CONFIG.getAbuseIpdbKey() == null || whitelistCache.contains(ip) || AntiScan.IS_DEV_MODE) {
             return false;
         }
         AntiScan.LOGGER.info("Checking ip '{}'", ip);
@@ -335,14 +333,53 @@ public class IpChecker {
         return updateNow(null);
     }
 
+    /**
+     * For testing and development only.
+     *
+     * @param success Whether the update should succeed
+     * @param instant Whether the update should be instant or have some artificial dealy
+     * @return {@code success}
+     */
+    @Contract("_,_,_->param1")
+    private boolean simulateUpdate(boolean success, boolean instant, Random random) {
+        if (!instant) {
+            try {
+                Thread.sleep(Duration.ofSeconds(random.nextInt(0, 4)));
+            } catch (InterruptedException e) {
+                AntiScan.LOGGER.debug("Interrupted while simulating blacklist update. It will still happen.", e);
+            }
+        }
+        if (success) {
+            for (int i = 0; i < random.nextInt(1, 6); i++) {
+                blacklistCache.add(String.format("%d.%d.%d.%d",
+                        random.nextInt(0, 256),
+                        random.nextInt(0, 256),
+                        random.nextInt(0, 256),
+                        random.nextInt(0, 256)));
+            }
+        }
+        return success;
+    }
+
     public Future<Boolean> updateNow(@Nullable File saveFile) {
         if (fetchingUpdates.tryLock()) {
             try {
                 lastUpdated = System.currentTimeMillis();
                 AntiScan.LOGGER.info("Updating blacklisted IPs.");
                 whitelistCache.clear();
-                FutureTask<Boolean> hunter = new FutureTask<>(this::fetchFromHunter);
+                blacklistCache.clear();
+                FutureTask<Boolean> hunter = new FutureTask<>(() -> {
+                    if (AntiScan.IS_DEV_MODE) {
+                        Random random = new Random();
+                        return simulateUpdate(random.nextBoolean(), false, random);
+                    }
+                    return fetchFromHunter();
+                });
                 FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
+                    if (AntiScan.IS_DEV_MODE) {
+                        Random random = new Random();
+                        return simulateUpdate(random.nextBoolean(), false, random);
+                    }
                     if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
                         return fetchFromAbuseIpdb(AntiScan.CONFIG.getAbuseIpdbKey());
                     }
