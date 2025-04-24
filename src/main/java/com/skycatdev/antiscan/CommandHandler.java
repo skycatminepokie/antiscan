@@ -368,6 +368,13 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int displayStats(CommandContext<ServerCommandSource> context) {
+        context.getSource().sendFeedback(() -> Utils.textOf("Please wait..."), false);
+        new Thread(() -> context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reports sent: %d", AntiScan.STATS.getIpsReported())), false), "AntiScan Stat Reporting").start();
+
+        return Command.SINGLE_SUCCESS;
+    }
+
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
         SuggestionProvider<ServerCommandSource> actionSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder);
@@ -591,6 +598,10 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.report", 4))
                 .executes(CommandHandler::reportIp)
                 .build();
+        var stats = literal("stats")
+                .requires(Permissions.require("antiscan.stats", 3))
+                .executes(CommandHandler::displayStats)
+                .build();
 
         //@formatter:off
         dispatcher.getRoot().addChild(antiScan);
@@ -650,6 +661,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                     configBlacklistUpdateCooldown.addChild(configBlacklistUpdateCooldownCooldown);
             antiScan.addChild(report);
                 report.addChild(reportIp);
+            antiScan.addChild(stats);
         //@formatter:on
     }
 }

@@ -254,10 +254,15 @@ public class IpChecker {
     }
 
     public boolean reportNow(String ip, String comment, int[] categories) {
+        if (AntiScan.IS_DEV_MODE) {
+            AntiScan.STATS.onIpReported(ip);
+            return true;
+        }
         if (AntiScan.CONFIG.getAbuseIpdbKey() != null &&
             !ip.equals("127.0.0.1") &&
             ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}") &&
             System.currentTimeMillis() - reportingCache.getOrDefault(ip, 0L) > TimeUnit.MINUTES.toMillis(15)) {
+            AntiScan.STATS.onIpReported(ip);
             reportingCache.put(ip, System.currentTimeMillis());
             HttpResponse<String> response;
             //? if >=1.20.5

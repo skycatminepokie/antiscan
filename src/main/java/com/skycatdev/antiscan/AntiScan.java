@@ -2,11 +2,13 @@ package com.skycatdev.antiscan;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -21,6 +23,8 @@ public class AntiScan implements ModInitializer {
     public static final File NAME_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_names.json").toFile();
     public static final NameChecker NAME_CHECKER = NameChecker.loadOrCreate(NAME_CHECKER_FILE);
     public static final Timer BLACKLIST_UPDATER = new Timer("Antiscan Blacklist Updater", true);
+    public static final File STATS_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_stats.json").toFile();
+    public static final Stats STATS = Stats.loadOrCreate(STATS_FILE);
 
     static {
         if (!IP_CHECKER_FILE.getParentFile().exists()) {
@@ -35,6 +39,11 @@ public class AntiScan implements ModInitializer {
             //noinspection ResultOfMethodCallIgnored
             CONFIG_FILE.getParentFile().mkdirs();
         }
+        if (!STATS_FILE.getParentFile().exists()) {
+            //noinspection ResultOfMethodCallIgnored
+            STATS_FILE.getParentFile().mkdirs();
+        }
+
         BLACKLIST_UPDATER.schedule(new TimerTask() {
             @Override
             public void run() {
@@ -46,5 +55,12 @@ public class AntiScan implements ModInitializer {
     @Override
     public void onInitialize() {
         CommandRegistrationCallback.EVENT.register(new CommandHandler());
+        ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {
+            try {
+                STATS.save(STATS_FILE);
+            } catch (IOException e) {
+                LOGGER.warn("Failed to save Antiscan stats. This is NOT a fatal error.");
+            }
+        });
     }
 }

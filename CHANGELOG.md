@@ -1,3 +1,4 @@
 - Properly clear blacklisted IPs when updating blacklist
 - Update blacklist even when server is paused
 - Add config for blacklist update cooldown
+- Added stats

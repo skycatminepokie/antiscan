@@ -47,3 +47,4 @@ the Multiplayer screen.
 | `antiscan config [handshake/login/ping/query] report <true/false>` | Set if blocked handshakes/login/pings/queries are reported             | `"antiscan.config.handshake/login/ping/query.report.set"` | OP Level 4 |
 | `antiscan report <ip>`                                             | Send a report to AbuseIPDB for port scanning                           | `"antiscan.report"`                                       | OP Level 4 |
 | `antiscan config blacklistUpdateCooldown <milliseconds>`           | Set how long to wait before updating blacklist again (default 5 hours) | `"antiscan.config.blacklistUpdateCooldown"`               | OP Level 4 |
+| `antiscan stats`                                                   | Display stats about mod usage                                          | `"antiscan.stats"`                                        | OP Level 3 |
