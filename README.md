@@ -29,20 +29,21 @@ the Multiplayer screen.
 
 ## Commands
 
-| Command                                                            | Action                                                             | Permission node                                           | Default    |
-|--------------------------------------------------------------------|--------------------------------------------------------------------|-----------------------------------------------------------|------------|
-| `antiscan [ip/name] blacklist add <ip/name>`                       | Manually blacklist an IP/name                                      | `"antiscan.ip/name.blacklist.add"`                        | OP Level 3 |
-| `antiscan [ip/name] blacklist remove <ip/name>`                    | Remove an IP/name from the manual blacklist                        | `"antiscan.ip/name.blacklist.remove"`                     | OP Level 3 |
-| `antiscan [ip/name] blacklist check <ip/name>`                     | Check if an IP/name is blacklisted                                 | `"antiscan.ip/name.blacklist.check"`                      | OP Level 3 |
-| `antiscan [ip/name] blacklist list`                                | List manually blacklisted IPs/names                                | `"antiscan.ip/name.blacklist.list"`                       | OP Level 3 |
-| `antiscan ip blacklist list all`                                   | List all blacklisted IPs, including automatically blacklisted ones | `"antiscan.ip.blacklist.list.all"`                        | OP Level 3 |
-| `antiscan ip blacklist update`                                     | Update the automatic blacklist                                     | `"antiscan.ip.blacklist.update"`                          | OP Level 4 |
-| `antiscan ip blacklist update force`                               | Update the automatic blacklist, ignoring rate limits               | `"antiscan.ip.blacklist.update.force"`                    | OP Level 4 |
-| `antiscan config abuseIpdbKey <key>`                               | Set the AbuseIPDB key to use                                       | `"antiscan.config.abuseIpdbKey"`                          | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] mode`                | Get the mode for blocking handshakes/login/pings/queries           | `"antiscan.config.handshake/login/ping/query.mode"`       | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] mode <mode>`         | Set the mode for blocking handshakes/login/pings/queries           | `"antiscan.config.handshake/login/ping/query.mode.set"`   | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] action`              | Get the action for handling blocked handshakes/login/pings/queries | `"antiscan.config.handshake/login/ping/query.action"`     | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] action <action>`     | Set the action for handling blocked handshakes/login/pings/queries | `"antiscan.config.handshake/login/ping/query.action.set"` | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] report`              | Get if blocked handshakes/login/pings/queries are reported         | `"antiscan.config.handshake/login/ping/query.report"`     | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] report <true/false>` | Set if blocked handshakes/login/pings/queries are reported         | `"antiscan.config.handshake/login/ping/query.report.set"` | OP Level 4 |
-| `antiscan report <ip>`                                             | Send a report to AbuseIPDB for port scanning                       | `"antiscan.report"`                                       | OP Level 4 |
+| Command                                                            | Action                                                                 | Permission node                                           | Default    |
+|--------------------------------------------------------------------|------------------------------------------------------------------------|-----------------------------------------------------------|------------|
+| `antiscan [ip/name] blacklist add <ip/name>`                       | Manually blacklist an IP/name                                          | `"antiscan.ip/name.blacklist.add"`                        | OP Level 3 |
+| `antiscan [ip/name] blacklist remove <ip/name>`                    | Remove an IP/name from the manual blacklist                            | `"antiscan.ip/name.blacklist.remove"`                     | OP Level 3 |
+| `antiscan [ip/name] blacklist check <ip/name>`                     | Check if an IP/name is blacklisted                                     | `"antiscan.ip/name.blacklist.check"`                      | OP Level 3 |
+| `antiscan [ip/name] blacklist list`                                | List manually blacklisted IPs/names                                    | `"antiscan.ip/name.blacklist.list"`                       | OP Level 3 |
+| `antiscan ip blacklist list all`                                   | List all blacklisted IPs, including automatically blacklisted ones     | `"antiscan.ip.blacklist.list.all"`                        | OP Level 3 |
+| `antiscan ip blacklist update`                                     | Update the automatic blacklist                                         | `"antiscan.ip.blacklist.update"`                          | OP Level 4 |
+| `antiscan ip blacklist update force`                               | Update the automatic blacklist, ignoring rate limits                   | `"antiscan.ip.blacklist.update.force"`                    | OP Level 4 |
+| `antiscan config abuseIpdbKey <key>`                               | Set the AbuseIPDB key to use                                           | `"antiscan.config.abuseIpdbKey"`                          | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] mode`                | Get the mode for blocking handshakes/login/pings/queries               | `"antiscan.config.handshake/login/ping/query.mode"`       | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] mode <mode>`         | Set the mode for blocking handshakes/login/pings/queries               | `"antiscan.config.handshake/login/ping/query.mode.set"`   | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] action`              | Get the action for handling blocked handshakes/login/pings/queries     | `"antiscan.config.handshake/login/ping/query.action"`     | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] action <action>`     | Set the action for handling blocked handshakes/login/pings/queries     | `"antiscan.config.handshake/login/ping/query.action.set"` | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] report`              | Get if blocked handshakes/login/pings/queries are reported             | `"antiscan.config.handshake/login/ping/query.report"`     | OP Level 4 |
+| `antiscan config [handshake/login/ping/query] report <true/false>` | Set if blocked handshakes/login/pings/queries are reported             | `"antiscan.config.handshake/login/ping/query.report.set"` | OP Level 4 |
+| `antiscan report <ip>`                                             | Send a report to AbuseIPDB for port scanning                           | `"antiscan.report"`                                       | OP Level 4 |
+| `antiscan config blacklistUpdateCooldown <milliseconds>`           | Set how long to wait before updating blacklist again (default 5 hours) | `"antiscan.config.blacklistUpdateCooldown"`               | OP Level 4 |

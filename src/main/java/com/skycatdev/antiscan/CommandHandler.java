@@ -4,6 +4,7 @@ import com.mojang.authlib.GameProfile;
 import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.BoolArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -357,6 +358,16 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
+    private static int setBlacklistUpdateCooldown(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setBlacklistUpdateCooldown(LongArgumentType.getLong(context, "cooldown"), AntiScan.CONFIG_FILE);
+            context.getSource().sendFeedback(() -> Utils.textOf("Set cooldown!"), false);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        return Command.SINGLE_SUCCESS;
+    }
+
     @Override
     public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
         SuggestionProvider<ServerCommandSource> actionSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder);
@@ -566,6 +577,13 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.config.query.report.set", 4))
                 .executes(CommandHandler::setQueryReport)
                 .build();
+        var configBlacklistUpdateCooldown = literal("blacklistUpdateCooldown")
+                .requires(Permissions.require("antiscan.config.blacklistUpdateCooldown", 4))
+                .build();
+        var configBlacklistUpdateCooldownCooldown = argument("milliseconds", LongArgumentType.longArg(1))
+                .requires(Permissions.require("antiscan.config.blacklistUpdateCooldown", 4))
+                .executes(CommandHandler::setBlacklistUpdateCooldown)
+                .build();
         var report = literal("report")
                 .requires(Permissions.require("antiscan.report", 4))
                 .build();
@@ -628,6 +646,8 @@ public class CommandHandler implements CommandRegistrationCallback {
                         configPingMode.addChild(configPingModeMode);
                     configPing.addChild(configPingReport);
                         configPingReport.addChild(configPingReportReport);
+                config.addChild(configBlacklistUpdateCooldown);
+                    configBlacklistUpdateCooldown.addChild(configBlacklistUpdateCooldownCooldown);
             antiScan.addChild(report);
                 report.addChild(reportIp);
         //@formatter:on

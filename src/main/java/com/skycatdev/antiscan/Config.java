@@ -8,6 +8,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 public class Config {
     public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -23,8 +24,10 @@ public class Config {
             Codec.BOOL.fieldOf("queryReport").forGetter(Config::isQueryReport),
             IpMode.CODEC.fieldOf("pingMode").forGetter(Config::getPingMode),
             Action.CODEC.fieldOf("pingAction").forGetter(Config::getPingAction),
-            Codec.BOOL.fieldOf("pingReport").forGetter(Config::isPingReport)
+            Codec.BOOL.fieldOf("pingReport").forGetter(Config::isPingReport),
+            Codec.LONG.optionalFieldOf("blacklistUpdateCooldown", TimeUnit.HOURS.toMillis(5)).forGetter(Config::getBlacklistUpdateCooldown)
     ).apply(instance, Config::new));
+    // Update config options ONLY on the server thread
     protected @Nullable String abuseIpdbKey;
     protected IpMode handshakeMode;
     protected Action handshakeAction;
@@ -38,24 +41,52 @@ public class Config {
     protected IpMode pingMode;
     protected Action pingAction;
     protected boolean pingReport;
+    protected long blacklistUpdateCooldown;
 
-    public Config(@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<String> abuseIpdbKey, IpMode handshakeMode, Action handshakeAction, boolean handshakeReport, NameIpMode loginMode, Action loginAction, boolean loginReport, IpMode queryMode, Action queryAction, boolean queryReport, IpMode pingMode, Action pingAction, boolean pingReport) {
-        this.abuseIpdbKey = abuseIpdbKey.orElse(null);
-        this.handshakeMode = handshakeMode;
-        this.handshakeAction = handshakeAction;
-        this.handshakeReport = handshakeReport;
-        this.loginMode = loginMode;
-        this.loginAction = loginAction;
-        this.loginReport = loginReport;
-        this.queryMode = queryMode;
-        this.queryAction = queryAction;
-        this.queryReport = queryReport;
-        this.pingMode = pingMode;
-        this.pingAction = pingAction;
-        this.pingReport = pingReport;
+    public Config(@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<String> abuseIpdbKey,
+                  IpMode handshakeMode,
+                  Action handshakeAction,
+                  boolean handshakeReport,
+                  NameIpMode loginMode,
+                  Action loginAction,
+                  boolean loginReport,
+                  IpMode queryMode,
+                  Action queryAction,
+                  boolean queryReport,
+                  IpMode pingMode,
+                  Action pingAction,
+                  boolean pingReport,
+                  long blacklistUpdateCooldown) {
+        this(abuseIpdbKey.orElse(null),
+                handshakeMode,
+                handshakeAction,
+                handshakeReport,
+                loginMode,
+                loginAction,
+                loginReport,
+                queryMode,
+                queryAction,
+                queryReport,
+                pingMode,
+                pingAction,
+                pingReport,
+                blacklistUpdateCooldown);
     }
 
-    public Config(@Nullable String abuseIpdbKey, IpMode handshakeMode, Action handshakeAction, boolean handshakeReport, NameIpMode loginMode, Action loginAction, boolean loginReport, IpMode queryMode, Action queryAction, boolean queryReport, IpMode pingMode, Action pingAction, boolean pingReport) {
+    public Config(@Nullable String abuseIpdbKey,
+                  IpMode handshakeMode,
+                  Action handshakeAction,
+                  boolean handshakeReport,
+                  NameIpMode loginMode,
+                  Action loginAction,
+                  boolean loginReport,
+                  IpMode queryMode,
+                  Action queryAction,
+                  boolean queryReport,
+                  IpMode pingMode,
+                  Action pingAction,
+                  boolean pingReport,
+                  long blacklistUpdateCooldown) {
         this.abuseIpdbKey = abuseIpdbKey;
         this.handshakeMode = handshakeMode;
         this.handshakeAction = handshakeAction;
@@ -69,6 +100,18 @@ public class Config {
         this.pingMode = pingMode;
         this.pingAction = pingAction;
         this.pingReport = pingReport;
+        this.blacklistUpdateCooldown = blacklistUpdateCooldown;
+    }
+
+    public long getBlacklistUpdateCooldown() {
+        return AntiScan.IS_DEV_MODE ? TimeUnit.SECONDS.toMillis(30) : blacklistUpdateCooldown;
+    }
+
+    public void setBlacklistUpdateCooldown(long blacklistUpdateCooldown, @Nullable File saveFile) throws IOException {
+        this.blacklistUpdateCooldown = blacklistUpdateCooldown;
+        if (saveFile != null) {
+            save(saveFile);
+        }
     }
 
     public Config() {

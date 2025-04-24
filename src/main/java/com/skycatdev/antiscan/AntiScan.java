@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.concurrent.TimeUnit;
 
 public class AntiScan implements ModInitializer {
     public static final String MOD_ID = "antiscan";
@@ -21,7 +20,6 @@ public class AntiScan implements ModInitializer {
     public static final IpChecker IP_CHECKER = IpChecker.loadOrCreate(IP_CHECKER_FILE);
     public static final File NAME_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_names.json").toFile();
     public static final NameChecker NAME_CHECKER = NameChecker.loadOrCreate(NAME_CHECKER_FILE);
-    public static final long DEFAULT_BLACKLIST_UPDATE_COOLDOWN = IS_DEV_MODE ? TimeUnit.SECONDS.toMillis(30) : TimeUnit.HOURS.toMillis(5);
     public static final Timer BLACKLIST_UPDATER = new Timer("Antiscan Blacklist Updater", true);
 
     static {
@@ -40,9 +38,9 @@ public class AntiScan implements ModInitializer {
         BLACKLIST_UPDATER.schedule(new TimerTask() {
             @Override
             public void run() {
-                IP_CHECKER.update(DEFAULT_BLACKLIST_UPDATE_COOLDOWN, IP_CHECKER_FILE);
+                IP_CHECKER.update(CONFIG.getBlacklistUpdateCooldown(), IP_CHECKER_FILE);
             }
-        }, DEFAULT_BLACKLIST_UPDATE_COOLDOWN, DEFAULT_BLACKLIST_UPDATE_COOLDOWN + 10); // Extra time to please the update delay checker. Maybe a hack, but it doesn't need to be perfect.
+        }, CONFIG.getBlacklistUpdateCooldown(), CONFIG.getBlacklistUpdateCooldown() + 10); // Extra time to please the update delay checker. Maybe a hack, but it doesn't need to be perfect.
     }
 
     @Override
