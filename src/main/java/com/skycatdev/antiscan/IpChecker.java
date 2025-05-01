@@ -292,7 +292,9 @@ public class IpChecker {
             }
             if (response != null) {
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                    AntiScan.LOGGER.info("Reported {}.", ip);
+                    if (AntiScan.CONFIG.shouldLogReports()) {
+                        AntiScan.LOGGER.info("Reported {}.", ip);
+                    }
                     return true;
                 } else {
                     AntiScan.LOGGER.warn("Failed to report IP to AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());

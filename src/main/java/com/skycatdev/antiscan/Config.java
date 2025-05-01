@@ -25,7 +25,9 @@ public class Config {
             IpMode.CODEC.fieldOf("pingMode").forGetter(Config::getPingMode),
             Action.CODEC.fieldOf("pingAction").forGetter(Config::getPingAction),
             Codec.BOOL.fieldOf("pingReport").forGetter(Config::isPingReport),
-            Codec.LONG.optionalFieldOf("blacklistUpdateCooldown", TimeUnit.HOURS.toMillis(5)).forGetter(Config::getBlacklistUpdateCooldown)
+            Codec.LONG.optionalFieldOf("blacklistUpdateCooldown", TimeUnit.HOURS.toMillis(5)).forGetter(Config::getBlacklistUpdateCooldown),
+            Codec.BOOL.optionalFieldOf("logReports", false).forGetter(Config::shouldLogReports),
+            Codec.BOOL.optionalFieldOf("logActions", false).forGetter(Config::shouldLogActions)
     ).apply(instance, Config::new));
     // Update config options ONLY on the server thread
     protected @Nullable String abuseIpdbKey;
@@ -42,6 +44,8 @@ public class Config {
     protected Action pingAction;
     protected boolean pingReport;
     protected long blacklistUpdateCooldown;
+    protected boolean logReports;
+    protected boolean logActions;
 
     public Config(@SuppressWarnings("OptionalUsedAsFieldOrParameterType") Optional<String> abuseIpdbKey,
                   IpMode handshakeMode,
@@ -56,7 +60,9 @@ public class Config {
                   IpMode pingMode,
                   Action pingAction,
                   boolean pingReport,
-                  long blacklistUpdateCooldown) {
+                  long blacklistUpdateCooldown,
+                  boolean logReports,
+                  boolean logActions) {
         this(abuseIpdbKey.orElse(null),
                 handshakeMode,
                 handshakeAction,
@@ -70,7 +76,9 @@ public class Config {
                 pingMode,
                 pingAction,
                 pingReport,
-                blacklistUpdateCooldown);
+                blacklistUpdateCooldown,
+                logReports,
+                logActions);
     }
 
     public Config(@Nullable String abuseIpdbKey,
@@ -86,7 +94,9 @@ public class Config {
                   IpMode pingMode,
                   Action pingAction,
                   boolean pingReport,
-                  long blacklistUpdateCooldown) {
+                  long blacklistUpdateCooldown,
+                  boolean logReports,
+                  boolean logActions) {
         this.abuseIpdbKey = abuseIpdbKey;
         this.handshakeMode = handshakeMode;
         this.handshakeAction = handshakeAction;
@@ -101,6 +111,30 @@ public class Config {
         this.pingAction = pingAction;
         this.pingReport = pingReport;
         this.blacklistUpdateCooldown = blacklistUpdateCooldown;
+        this.logReports = logReports;
+        this.logActions = logActions;
+    }
+
+    public void setLogActions(boolean logActions, @Nullable File saveFile) throws IOException {
+        this.logActions = logActions;
+        if (saveFile != null) {
+            save(saveFile);
+        }
+    }
+
+    public void setLogReports(boolean logReports, @Nullable File saveFile) throws IOException {
+        this.logReports = logReports;
+        if (saveFile != null) {
+            save(saveFile);
+        }
+    }
+
+    public boolean shouldLogActions() {
+        return logActions;
+    }
+
+    public boolean shouldLogReports() {
+        return logReports;
     }
 
     public long getBlacklistUpdateCooldown() {

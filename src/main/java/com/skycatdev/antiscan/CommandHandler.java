@@ -188,10 +188,13 @@ public class CommandHandler implements CommandRegistrationCallback {
         return names;
     }
 
-    private static int reportIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        AntiScan.IP_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
-        context.getSource().sendFeedback(() -> Utils.textOf("Report sent."), true);
-        return Command.SINGLE_SUCCESS;
+    private static int displayLogActions(CommandContext<ServerCommandSource> context) {
+        if (AntiScan.CONFIG.shouldLogActions()) {
+            context.getSource().sendFeedback(() -> Utils.textOf("Action logging is on."), false);
+            return Command.SINGLE_SUCCESS;
+        }
+        context.getSource().sendFeedback(() -> Utils.textOf("Action logging is off."), false);
+        return 0;
     }
 
     private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
@@ -372,6 +375,41 @@ public class CommandHandler implements CommandRegistrationCallback {
         context.getSource().sendFeedback(() -> Utils.textOf("Please wait..."), false);
         new Thread(() -> context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reports sent: %d", AntiScan.STATS.getIpsReported())), false), "AntiScan Stat Reporting").start();
 
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int displayLogReports(CommandContext<ServerCommandSource> context) {
+        if (AntiScan.CONFIG.shouldLogReports()) {
+            context.getSource().sendFeedback(() -> Utils.textOf("Report logging is on."), false);
+            return Command.SINGLE_SUCCESS;
+        }
+        context.getSource().sendFeedback(() -> Utils.textOf("Report logging is off."), false);
+        return 0;
+    }
+
+    private static int reportIp(CommandContext<ServerCommandSource> context) {
+        AntiScan.IP_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
+        context.getSource().sendFeedback(() -> Utils.textOf("Report sent."), true);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLogActions(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setLogActions(BoolArgumentType.getBool(context, "log"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayLogActions(context);
+        return Command.SINGLE_SUCCESS;
+    }
+
+    private static int setLogReports(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+        try {
+            AntiScan.CONFIG.setLogReports(BoolArgumentType.getBool(context, "log"), AntiScan.CONFIG_FILE);
+        } catch (IOException e) {
+            throw FAILED_TO_SET_CONFIG.create();
+        }
+        displayLogReports(context);
         return Command.SINGLE_SUCCESS;
     }
 
@@ -591,6 +629,26 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .requires(Permissions.require("antiscan.config.blacklistUpdateCooldown", 4))
                 .executes(CommandHandler::setBlacklistUpdateCooldown)
                 .build();
+        var configLog = literal("log")
+                .requires(Permissions.require("antiscan.config.log", 4))
+                .build();
+        var configLogReports = literal("reports")
+                .requires(Permissions.require("antiscan.config.log.reports", 4))
+                .executes(CommandHandler::displayLogReports)
+                .build();
+        var configLogReportsLog = argument("log", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.log.reports", 4))
+                .executes(CommandHandler::setLogReports)
+                .build();
+        var configLogActions = literal("actions")
+                .requires(Permissions.require("antiscan.config.log.actions", 4))
+                .executes(CommandHandler::displayLogActions)
+                .build();
+        var configLogActionsLog = argument("log", BoolArgumentType.bool())
+                .requires(Permissions.require("antiscan.config.log.actions", 4))
+                .executes(CommandHandler::setLogActions)
+                .build();
+
         var report = literal("report")
                 .requires(Permissions.require("antiscan.report", 4))
                 .build();
@@ -659,6 +717,11 @@ public class CommandHandler implements CommandRegistrationCallback {
                         configPingReport.addChild(configPingReportReport);
                 config.addChild(configBlacklistUpdateCooldown);
                     configBlacklistUpdateCooldown.addChild(configBlacklistUpdateCooldownCooldown);
+                config.addChild(configLog);
+                    configLog.addChild(configLogReports);
+                        configLogReports.addChild(configLogReportsLog);
+                    configLog.addChild(configLogActions);
+                        configLogActions.addChild(configLogActionsLog);
             antiScan.addChild(report);
                 report.addChild(reportIp);
             antiScan.addChild(stats);

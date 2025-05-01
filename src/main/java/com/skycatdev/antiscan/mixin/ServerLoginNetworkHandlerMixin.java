@@ -58,9 +58,15 @@ public abstract class ServerLoginNetworkHandlerMixin {
         } else {
             switch (AntiScan.CONFIG.getLoginAction()) {
                 case NOTHING -> original.call(packet);
-                case TIMEOUT -> AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                case TIMEOUT -> {
+                    if (AntiScan.CONFIG.shouldLogActions()) {
+                        AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                    }
+                }
                 case DISCONNECT -> {
-                    AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                    if (AntiScan.CONFIG.shouldLogActions()) {
+                        AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                    }
                     connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
                 }
                 default -> {

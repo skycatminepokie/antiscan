@@ -38,13 +38,19 @@ public class Utils {
         } else {
             switch (action) {
                 case NOTHING -> allow.run();
-                case TIMEOUT -> AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                case TIMEOUT -> {
+                    if (AntiScan.CONFIG.shouldLogActions()) {
+                        AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                    }
+                }
                 case DISCONNECT -> {
-                    AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                    if (AntiScan.CONFIG.shouldLogActions()) {
+                        AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                    }
                     connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
                 }
                 default -> {
-                    AntiScan.LOGGER.error("Impossible case -action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
+                    AntiScan.LOGGER.error("Impossible case - action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
                     allow.run();
                 }
             }
