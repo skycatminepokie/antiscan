@@ -55,7 +55,10 @@ public class AntiScan implements ModInitializer {
     @Override
     public void onInitialize() {
         CommandRegistrationCallback.EVENT.register(new CommandHandler());
+        //? if >=1.21.5
         ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {
+            //? if <1.21.5
+            /*ServerLifecycleEvents.SERVER_STOPPING.register(server -> {*/
             try {
                 STATS.save(STATS_FILE);
             } catch (IOException e) {
