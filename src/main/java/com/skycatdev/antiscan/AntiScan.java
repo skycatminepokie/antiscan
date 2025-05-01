@@ -1,6 +1,6 @@
 package com.skycatdev.antiscan;
 
-import net.fabricmc.api.ModInitializer;
+import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Timer;
 import java.util.TimerTask;
 
-public class AntiScan implements ModInitializer {
+public class AntiScan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final boolean IS_DEV_MODE = FabricLoader.getInstance().isDevelopmentEnvironment();
@@ -53,7 +53,7 @@ public class AntiScan implements ModInitializer {
     }
 
     @Override
-    public void onInitialize() {
+    public void onInitializeServer() {
         CommandRegistrationCallback.EVENT.register(new CommandHandler());
         //? if >=1.21.5
         ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {

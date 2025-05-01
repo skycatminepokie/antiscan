@@ -12,12 +12,14 @@
 	},
 	"license": "MIT",
 	"icon": "assets/antiscan/icon.png",
-	"environment": "*",
+	"environment": "server",
 	"entrypoints": {
 		"main": [
-			"com.skycatdev.antiscan.AntiScan"
 		],
 		"client": [
+		],
+		"server": [
+			"com.skycatdev.antiscan.AntiScan"
 		],
 		"fabric-datagen": [
 			"com.skycatdev.antiscan.AntiScanDataGenerator"
@@ -27,11 +29,7 @@
 		]
 	},
 	"mixins": [
-		"antiscan.mixins.json",
-		{
-			"config": "antiscan.client.mixins.json",
-			"environment": "client"
-		}
+		"antiscan.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=${loader_version}",
