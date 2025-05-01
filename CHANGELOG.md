@@ -2,3 +2,5 @@
 - Update blacklist even when server is paused
 - Add config for blacklist update cooldown
 - Added stats
+- Added config for logging actions and reporting
+- Suppress packet handling errors from blacklisted IPs

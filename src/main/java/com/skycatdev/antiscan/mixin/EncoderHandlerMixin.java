@@ -1,0 +1,24 @@
+package com.skycatdev.antiscan.mixin;
+
+import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
+import com.llamalad7.mixinextras.injector.wrapoperation.WrapOperation;
+import com.llamalad7.mixinextras.sugar.Local;
+import com.skycatdev.antiscan.AntiScan;
+import io.netty.channel.ChannelHandlerContext;
+import net.minecraft.network.handler.EncoderHandler;
+import org.slf4j.Logger;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+
+import java.net.InetSocketAddress;
+
+@Mixin(EncoderHandler.class)
+public abstract class EncoderHandlerMixin {
+
+    @WrapOperation(method = "encode(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;Lio/netty/buffer/ByteBuf;)V", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"))
+    private void antiScan$supressErrors(Logger instance, String s, Object o1, Object o2, Operation<Void> original, @Local(ordinal = 0, argsOnly = true) ChannelHandlerContext context) {
+        if (!(context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress) || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
+            original.call(instance, s, o1, o2);
+        }
+    }
+}
