@@ -12,7 +12,10 @@ import org.spongepowered.asm.mixin.injection.At;
 
 import java.net.InetSocketAddress;
 
+//? if >=1.20.5
 @Mixin(EncoderHandler.class)
+//? if <1.20.5
+/*@Mixin(PacketEncoder.class)*/
 public abstract class EncoderHandlerMixin {
 
     @WrapOperation(method = "encode(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;Lio/netty/buffer/ByteBuf;)V", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"), remap = false)
