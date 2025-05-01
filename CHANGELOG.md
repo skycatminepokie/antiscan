@@ -4,3 +4,4 @@
 - Added stats
 - Added config for logging actions and reporting
 - Suppress packet handling errors from blacklisted IPs
+- Allow later Fabric API versions

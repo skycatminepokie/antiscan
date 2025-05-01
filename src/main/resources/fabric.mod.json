@@ -37,6 +37,6 @@
 		"fabricloader": ">=${loader_version}",
 		"minecraft": "~${minecraft}",
 		"java": ">=${java}",
-		"fabric-api": "${fabric_version}"
+      "fabric-api": ">=${fabric_version}"
 	}
 }
