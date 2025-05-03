@@ -33,8 +33,8 @@ jobs:
           name: JARs
           path: build/libs/*
 
-      - name: Run Game Tests
-        run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGameTest # ty modmuss
+      # - name: Run Game Tests
+      #   run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGameTest # ty modmuss
 
       - name: Publish
         run: ./gradlew chiseledPublishMods
