@@ -1,0 +1,45 @@
+name: Publish
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Java
+        uses: actions/setup-java@v3.12.0
+        with:
+          distribution: "temurin"
+          java-version: 21
+
+      - name: Make Gradle Wrapper Executable
+        if: ${{ runner.os != 'Windows' }}
+        run: chmod +x ./gradlew
+
+      - name: Build
+        run: ./gradlew buildAndCollect
+
+      - name: Upload JAR Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: JARs
+          path: build/libs/*
+
+      - name: Run Game Tests
+        run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGameTest # ty modmuss
+
+      - name: Publish
+        run: ./gradlew chiseledPublishMods
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          DISCORD_WEBHOOK_DRY_RUN: ${{ secrets.DISCORD_WEBHOOK_DRY_RUN }}
