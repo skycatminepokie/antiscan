@@ -1,1 +1,1 @@
-- Fix spamming updates on first launch
+- Fixed crash at login
