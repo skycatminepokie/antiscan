@@ -1,9 +1,1 @@
-- Properly clear blacklisted IPs when updating blacklist
-- Update blacklist even when server is paused
-- Add config for blacklist update cooldown
-- Added stats
-- Added config for logging actions and reporting
-- Suppress packet handling errors from blacklisted IPs
-- Allow later Fabric API versions
-- Enforce dedicated server only
-- Update LICENSE
+- Fix spamming updates on first launch

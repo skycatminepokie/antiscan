@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 public class Config {
+    public static final long DEFAULT_UPDATE_COOLDOWN = TimeUnit.HOURS.toMillis(5);
     public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.optionalFieldOf("abuseIpdbKey").forGetter(config -> Optional.ofNullable(config.getAbuseIpdbKey())),
             IpMode.CODEC.fieldOf("handshakeMode").forGetter(Config::getHandshakeMode),
@@ -25,7 +26,7 @@ public class Config {
             IpMode.CODEC.fieldOf("pingMode").forGetter(Config::getPingMode),
             Action.CODEC.fieldOf("pingAction").forGetter(Config::getPingAction),
             Codec.BOOL.fieldOf("pingReport").forGetter(Config::isPingReport),
-            Codec.LONG.optionalFieldOf("blacklistUpdateCooldown", TimeUnit.HOURS.toMillis(5)).forGetter(Config::getBlacklistUpdateCooldown),
+            Codec.LONG.optionalFieldOf("blacklistUpdateCooldown", DEFAULT_UPDATE_COOLDOWN).forGetter(Config::getBlacklistUpdateCooldown),
             Codec.BOOL.optionalFieldOf("logReports", false).forGetter(Config::shouldLogReports),
             Codec.BOOL.optionalFieldOf("logActions", false).forGetter(Config::shouldLogActions)
     ).apply(instance, Config::new));
@@ -115,6 +116,25 @@ public class Config {
         this.logActions = logActions;
     }
 
+    public Config() {
+        this.abuseIpdbKey = null;
+        this.handshakeMode = IpMode.MATCH_NONE;
+        this.handshakeAction = Action.NOTHING;
+        this.handshakeReport = false;
+        this.loginMode = NameIpMode.MATCH_EITHER;
+        this.loginAction = Action.TIMEOUT;
+        this.loginReport = true;
+        this.queryMode = IpMode.MATCH_NONE;
+        this.queryAction = Action.DISCONNECT;
+        this.queryReport = true;
+        this.pingMode = IpMode.MATCH_NONE;
+        this.pingAction = Action.DISCONNECT;
+        this.pingReport = true;
+        this.blacklistUpdateCooldown = DEFAULT_UPDATE_COOLDOWN;
+        this.logReports = false;
+        this.logActions = false;
+    }
+
     public void setLogActions(boolean logActions, @Nullable File saveFile) throws IOException {
         this.logActions = logActions;
         if (saveFile != null) {
@@ -146,22 +166,6 @@ public class Config {
         if (saveFile != null) {
             save(saveFile);
         }
-    }
-
-    public Config() {
-        this.abuseIpdbKey = null;
-        this.handshakeMode = IpMode.MATCH_NONE;
-        this.handshakeAction = Action.NOTHING;
-        this.handshakeReport = false;
-        this.loginMode = NameIpMode.MATCH_EITHER;
-        this.loginAction = Action.TIMEOUT;
-        this.loginReport = true;
-        this.queryMode = IpMode.MATCH_NONE;
-        this.queryAction = Action.DISCONNECT;
-        this.queryReport = true;
-        this.pingMode = IpMode.MATCH_NONE;
-        this.pingAction = Action.DISCONNECT;
-        this.pingReport = true;
     }
 
     public static Config load(File saveFile) throws IOException {
