@@ -23,7 +23,7 @@ import java.net.InetSocketAddress;
 /*@Mixin(PacketEncoder.class)*/
 public abstract class EncoderHandlerMixin {
 
-    @WrapOperation(method = "encode(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;Lio/netty/buffer/ByteBuf;)V", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"), remap = false)
+    @WrapOperation(method = "encode(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;Lio/netty/buffer/ByteBuf;)V", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V"))
     private void antiScan$supressErrors(Logger instance, String s, Object o1, Object o2, Operation<Void> original, @Local(ordinal = 0, argsOnly = true) ChannelHandlerContext context) {
         if (!(context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress) || !AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
             original.call(instance, s, o1, o2);
