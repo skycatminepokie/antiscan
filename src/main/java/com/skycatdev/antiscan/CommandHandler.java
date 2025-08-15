@@ -637,7 +637,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .executes(CommandHandler::displayLogReports)
                 .build();
         var configLogReportsLog = argument("log", BoolArgumentType.bool())
-                .requires(Permissions.require("antiscan.config.log.reports", 4))
+                .requires(Permissions.require("antiscan.config.log.reports.set", 4))
                 .executes(CommandHandler::setLogReports)
                 .build();
         var configLogActions = literal("actions")
@@ -645,7 +645,7 @@ public class CommandHandler implements CommandRegistrationCallback {
                 .executes(CommandHandler::displayLogActions)
                 .build();
         var configLogActionsLog = argument("log", BoolArgumentType.bool())
-                .requires(Permissions.require("antiscan.config.log.actions", 4))
+                .requires(Permissions.require("antiscan.config.log.actions.set", 4))
                 .executes(CommandHandler::setLogActions)
                 .build();
 
