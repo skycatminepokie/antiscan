@@ -17,7 +17,11 @@ import java.io.*;
 import java.net.InetSocketAddress;
 
 public class Utils {
-    public static void handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
+    /**
+     *
+     * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
+     */
+    public static boolean handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
         @Nullable String hostString = null;
         if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
             hostString = inetSocketAddress.getHostString();
@@ -35,6 +39,7 @@ public class Utils {
 
         if (good) {
             allow.run();
+            return true;
         } else {
             switch (action) {
                 case NOTHING -> allow.run();
@@ -52,11 +57,13 @@ public class Utils {
                 default -> {
                     AntiScan.LOGGER.error("Impossible case - action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
                     allow.run();
+                    return true;
                 }
             }
             if (report && hostString != null) {
                 AntiScan.IP_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
             }
+            return false;
         }
     }
 
