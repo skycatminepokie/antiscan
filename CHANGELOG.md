@@ -1,1 +1,2 @@
-- Fixed crash at login
+- Fixed false reports
+- Fixed errors being logged from scanner connection attempts
