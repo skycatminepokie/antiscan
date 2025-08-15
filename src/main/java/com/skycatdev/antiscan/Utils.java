@@ -22,10 +22,6 @@ public class Utils {
      * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
      */
     public static boolean handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
-        if (true) { // TODO: Debug only
-            connection.disconnect(Text.of("yeet"));
-            return false;
-        }
         @Nullable String hostString = null;
         if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
             hostString = inetSocketAddress.getHostString();
