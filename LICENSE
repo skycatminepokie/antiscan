@@ -1,28 +1,7 @@
-# Skycat Binary Exclusion License Version 1 (SBELv1)
+Copyright 2025 skycatminepokie
 
-Copyright (c) 2025 skycatminepokie
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
-## 1. Summary
-1.1: This summary is NOT to be used in place of the license. It is for reference only. See 2.1.
-1.2: Developers: You are free to use the source code and documentation files in your projects. Attribution is requested, but not required.
-1.3: Modpack Creators: You are allowed to include this mod in your modpacks, as long as they are added via link to an approved distributor and NOT a direct download. This is how mods are normally included in Curseforge, Modrinth, and Packwiz modpacks.
-1.4: The Binaries (also known as "mod jars") may not be distributed without express permission.
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
-## 2. Information
-2.1: The body of this license begins at section 2. All other sections are for reference only.
-2.2: This license may be modified and adapted for other projects. No warranty or guarantee is provided for the use of this license.
-
-## 3. Definitions
-3.1: "Source" is defined as the files composing the software, as well as associated documentation files.
-3.2: "Binaries" is defined as both: a) a compiled version of the whole Source and b) the Source, without significant changes, in a compiled form.
-
-## 4. Source
-4.1: The Source may be modified, copied, used, shared, and adapted free of charge.
-4.2: There is no guarantee or warranty provided for the Source.
-4.3: The developers, contributors, and copyright holders are not to be held responsible in any event arising from the use or misuse of the Source.
-
-## 5. Binaries
-5.1: The Binaries may be run and modified free of charge.
-5.2: There is no guarantee or warranty provided for the Binaries.
-5.3: The developers, contributors, and copyright holders are not to be held responsible in any event arising from the use or misuse of the Binaries.
-5.4: Distribution or other use of the Binaries is prohibited unless explicitly permitted by this license or by the copyright holder.
+THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
