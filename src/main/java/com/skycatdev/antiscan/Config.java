@@ -118,17 +118,17 @@ public class Config {
 
     public Config() {
         this.abuseIpdbKey = null;
-        this.handshakeMode = IpMode.MATCH_NONE;
-        this.handshakeAction = Action.NOTHING;
+        this.handshakeMode = IpMode.MATCH_IP;
+        this.handshakeAction = Action.TIMEOUT;
         this.handshakeReport = false;
         this.loginMode = NameIpMode.MATCH_EITHER;
         this.loginAction = Action.TIMEOUT;
         this.loginReport = true;
-        this.queryMode = IpMode.MATCH_NONE;
-        this.queryAction = Action.DISCONNECT;
+        this.queryMode = IpMode.MATCH_IP;
+        this.queryAction = Action.TIMEOUT;
         this.queryReport = true;
-        this.pingMode = IpMode.MATCH_NONE;
-        this.pingAction = Action.DISCONNECT;
+        this.pingMode = IpMode.MATCH_IP;
+        this.pingAction = Action.TIMEOUT;
         this.pingReport = true;
         this.blacklistUpdateCooldown = DEFAULT_UPDATE_COOLDOWN;
         this.logReports = false;
