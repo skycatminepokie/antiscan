@@ -23,11 +23,11 @@ public abstract class ServerQueryNetworkHandlerMixin {
     //? if <1.20.2
     /*@WrapMethod(method = "onPing")*/
     private void antiScan$handleBaddiesPing(QueryPingC2SPacket packet, Operation<Void> original) {
-        Utils.handleIpConnection(AntiScan.CONFIG.getPingMode(), AntiScan.CONFIG.getPingAction(), AntiScan.CONFIG.isPingReport(), connection, () -> original.call(packet));
+        Utils.handleIpConnection(connection, AntiScan.CONFIG.getPingMode(), AntiScan.CONFIG.getPingAction(), AntiScan.CONFIG.isPingReport(), () -> original.call(packet));
     }
 
     @WrapMethod(method = "onRequest")
     private void antiScan$handleBaddiesQuery(QueryRequestC2SPacket packet, Operation<Void> original) {
-        Utils.handleIpConnection(AntiScan.CONFIG.getQueryMode(), AntiScan.CONFIG.getQueryAction(), AntiScan.CONFIG.isQueryReport(), connection, () -> original.call(packet));
+        Utils.handleIpConnection(connection, AntiScan.CONFIG.getQueryMode(), AntiScan.CONFIG.getQueryAction(), AntiScan.CONFIG.isQueryReport(), () -> original.call(packet));
     }
 }

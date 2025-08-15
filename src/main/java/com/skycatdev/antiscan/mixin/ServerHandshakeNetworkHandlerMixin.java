@@ -21,13 +21,13 @@ public abstract class ServerHandshakeNetworkHandlerMixin {
     //? if >=1.20.5 {
     @WrapMethod(method = "login")
     private void antiScan$handleBaddies(HandshakeC2SPacket packet, boolean transfer, Operation<Void> original) {
-        Utils.handleIpConnection(AntiScan.CONFIG.getHandshakeMode(), AntiScan.CONFIG.getHandshakeAction(), AntiScan.CONFIG.isHandshakeReport(), connection, () -> original.call(packet, transfer));
+        Utils.handleIpConnection(connection, AntiScan.CONFIG.getHandshakeMode(), AntiScan.CONFIG.getHandshakeAction(), AntiScan.CONFIG.isHandshakeReport(), () -> original.call(packet, transfer));
     }
     //?}
     //? if <1.20.5 {
     /*@WrapMethod(method = "onHandshake")
     private void antiScan$handleBaddies(HandshakeC2SPacket packet, Operation<Void> original) {
-        Utils.handleIpConnection(AntiScan.CONFIG.getHandshakeMode(), AntiScan.CONFIG.getHandshakeAction(), AntiScan.CONFIG.isHandshakeReport(), connection, () -> original.call(packet));
+        Utils.handleIpConnection(connection, AntiScan.CONFIG.getHandshakeMode(), AntiScan.CONFIG.getHandshakeAction(), AntiScan.CONFIG.isHandshakeReport(), () -> original.call(packet));
     }
     *///?}
 }

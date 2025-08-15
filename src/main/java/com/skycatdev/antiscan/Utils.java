@@ -21,50 +21,75 @@ public class Utils {
      *
      * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
      */
-    public static boolean handleIpConnection(Config.IpMode mode, Config.Action action, boolean report, ClientConnection connection, Runnable allow) {
-        @Nullable String hostString = null;
-        if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-            hostString = inetSocketAddress.getHostString();
-        }
+    public static boolean handleNameIpConnection(ClientConnection connection, String name, Config.NameIpMode mode, Config.Action action, boolean report, Runnable allow) {
         boolean good = switch (mode) {
+            case MATCH_EITHER ->
+                    !(AntiScan.IP_CHECKER.isBlacklisted(connection) || AntiScan.NAME_CHECKER.isBlacklisted(name));
             case MATCH_NONE -> true;
             case MATCH_ALL -> false;
-            case MATCH_IP -> {
-                if (hostString != null) {
-                    yield connection.isLocal() || !AntiScan.IP_CHECKER.isBlacklisted(hostString);
-                }
-                yield connection.isLocal();
-            }
+            case MATCH_BOTH ->
+                    !(AntiScan.IP_CHECKER.isBlacklisted(connection) && AntiScan.NAME_CHECKER.isBlacklisted(name));
+            case MATCH_IP -> !AntiScan.IP_CHECKER.isBlacklisted(connection);
+            case MATCH_NAME -> !AntiScan.NAME_CHECKER.isBlacklisted(name);
         };
-
         if (good) {
             allow.run();
             return true;
         } else {
-            switch (action) {
-                case NOTHING -> allow.run();
-                case TIMEOUT -> {
-                    if (AntiScan.CONFIG.shouldLogActions()) {
-                        AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
-                    }
-                }
-                case DISCONNECT -> {
-                    if (AntiScan.CONFIG.shouldLogActions()) {
-                        AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
-                    }
-                    connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
-                }
-                default -> {
-                    AntiScan.LOGGER.error("Impossible case - action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
-                    allow.run();
-                    return true;
-                }
+            @Nullable String hostString = null;
+            if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
+                hostString = inetSocketAddress.getHostString();
             }
-            if (report && hostString != null) {
-                AntiScan.IP_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
-            }
-            return false;
+            return handleAction(action, report, connection, allow, hostString);
         }
+    }
+
+    /**
+     *
+     * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
+     */
+    public static boolean handleIpConnection(ClientConnection connection, Config.IpMode mode, Config.Action action, boolean report, Runnable allow) {
+        boolean good = switch (mode) {
+            case MATCH_NONE -> true;
+            case MATCH_ALL -> false;
+            case MATCH_IP -> AntiScan.IP_CHECKER.isBlacklisted(connection);
+        };
+        if (good) {
+            allow.run();
+            return true;
+        } else {
+            @Nullable String hostString = null;
+            if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
+                hostString = inetSocketAddress.getHostString();
+            }
+            return handleAction(action, report, connection, allow, hostString);
+        }
+    }
+
+    private static boolean handleAction(Config.Action action, boolean report, ClientConnection connection, Runnable allow, @Nullable String hostString) {
+        switch (action) {
+            case NOTHING -> allow.run();
+            case TIMEOUT -> {
+                if (AntiScan.CONFIG.shouldLogActions()) {
+                    AntiScan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                }
+            }
+            case DISCONNECT -> {
+                if (AntiScan.CONFIG.shouldLogActions()) {
+                    AntiScan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                }
+                connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
+            }
+            default -> {
+                AntiScan.LOGGER.error("Impossible case - action not handled. Allowing connection. Please report this at https://github.com/skycatminepokie/antiscan/issues.");
+                allow.run();
+                return true;
+            }
+        }
+        if (report && hostString != null) {
+            AntiScan.IP_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
+        }
+        return false;
     }
 
     public static <T> void saveToFile(T t, File file, Codec<T> codec) throws IOException {

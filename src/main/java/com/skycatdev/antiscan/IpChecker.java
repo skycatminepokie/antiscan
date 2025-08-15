@@ -5,6 +5,7 @@ import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.network.ClientConnection;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -12,6 +13,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -241,6 +243,16 @@ public class IpChecker {
 
     private Set<String> getWhitelistCache() {
         return whitelistCache;
+    }
+
+    public boolean isBlacklisted(ClientConnection connection) {
+        if (connection.isLocal()) return false;
+        if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
+            String hostString = inetSocketAddress.getHostString();
+            return isBlacklisted(hostString);
+        } else {
+            return false;
+        }
     }
 
     public boolean isBlacklisted(String ip) {
