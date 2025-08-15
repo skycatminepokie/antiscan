@@ -31,7 +31,7 @@ public abstract class EncoderHandlerMixin<T extends PacketListener> {
 
     @WrapOperation(method = "encode(Lio/netty/channel/ChannelHandlerContext;Lnet/minecraft/network/packet/Packet;Lio/netty/buffer/ByteBuf;)V", at = @At(value = "INVOKE", target = "Lorg/slf4j/Logger;error(Ljava/lang/String;Ljava/lang/Object;Ljava/lang/Object;)V", remap = false))
     private void antiScan$supressErrorLog(Logger instance, String s, Object o1, Object o2, Operation<Void> original, @Local(ordinal = 0, argsOnly = true) ChannelHandlerContext context) {
-        if (context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress && AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
+        if (context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress && AntiScan.CONNECTION_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
             return;
         }
         original.call(instance, s, o1, o2);
@@ -42,7 +42,7 @@ public abstract class EncoderHandlerMixin<T extends PacketListener> {
         try {
             original.call(context, packet, byteBuf);
         } catch (Exception e) {
-            if (context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress && AntiScan.IP_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
+            if (context.channel().remoteAddress() instanceof InetSocketAddress inetSocketAddress && AntiScan.CONNECTION_CHECKER.isBlacklisted(inetSocketAddress.getHostString())) {
                 return;
             }
             toThrow = e;

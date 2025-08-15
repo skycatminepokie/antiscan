@@ -24,12 +24,12 @@ public class Utils {
     public static boolean handleNameIpConnection(ClientConnection connection, String name, Config.NameIpMode mode, Config.Action action, boolean report, Runnable allow) {
         boolean good = switch (mode) {
             case MATCH_EITHER ->
-                    !(AntiScan.IP_CHECKER.isBlacklisted(connection) || AntiScan.NAME_CHECKER.isBlacklisted(name));
+                    !(AntiScan.CONNECTION_CHECKER.isBlacklisted(connection) || AntiScan.NAME_CHECKER.isBlacklisted(name));
             case MATCH_NONE -> true;
             case MATCH_ALL -> false;
             case MATCH_BOTH ->
-                    !(AntiScan.IP_CHECKER.isBlacklisted(connection) && AntiScan.NAME_CHECKER.isBlacklisted(name));
-            case MATCH_IP -> !AntiScan.IP_CHECKER.isBlacklisted(connection);
+                    !(AntiScan.CONNECTION_CHECKER.isBlacklisted(connection) && AntiScan.NAME_CHECKER.isBlacklisted(name));
+            case MATCH_IP -> !AntiScan.CONNECTION_CHECKER.isBlacklisted(connection);
             case MATCH_NAME -> !AntiScan.NAME_CHECKER.isBlacklisted(name);
         };
         if (good) {
@@ -52,7 +52,7 @@ public class Utils {
         boolean good = switch (mode) {
             case MATCH_NONE -> true;
             case MATCH_ALL -> false;
-            case MATCH_IP -> AntiScan.IP_CHECKER.isBlacklisted(connection);
+            case MATCH_IP -> AntiScan.CONNECTION_CHECKER.isBlacklisted(connection);
         };
         if (good) {
             allow.run();
@@ -87,7 +87,7 @@ public class Utils {
             }
         }
         if (report && hostString != null) {
-            AntiScan.IP_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
+            AntiScan.CONNECTION_CHECKER.report(hostString, "Bad connection attempt. Reported by AntiScan for Fabric.", new int[]{14});
         }
         return false;
     }

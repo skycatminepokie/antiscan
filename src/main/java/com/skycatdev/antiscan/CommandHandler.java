@@ -37,7 +37,7 @@ public class CommandHandler implements CommandRegistrationCallback {
     private static int blacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
-            if (AntiScan.IP_CHECKER.blacklist(ip, true, AntiScan.IP_CHECKER_FILE)) {
+            if (AntiScan.CONNECTION_CHECKER.blacklist(ip, true, AntiScan.CONNECTION_CHECKER_FILE)) {
                 context.getSource().sendFeedback(() -> Utils.textOf(String.format("Blacklisted %s.", ip)), true);
                 return Command.SINGLE_SUCCESS;
             }
@@ -64,7 +64,7 @@ public class CommandHandler implements CommandRegistrationCallback {
 
     private static int checkIp(CommandContext<ServerCommandSource> context) {
         String ip = StringArgumentType.getString(context, "ip");
-        if (AntiScan.IP_CHECKER.isBlacklisted(ip)) {
+        if (AntiScan.CONNECTION_CHECKER.isBlacklisted(ip)) {
             context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is blacklisted.", ip)), false);
             return Command.SINGLE_SUCCESS;
         }
@@ -151,30 +151,30 @@ public class CommandHandler implements CommandRegistrationCallback {
     }
 
     private static int forceUpdateIpBlacklist(CommandContext<ServerCommandSource> context) {
-        AntiScan.IP_CHECKER.updateNow(AntiScan.IP_CHECKER_FILE);
+        AntiScan.CONNECTION_CHECKER.updateNow(AntiScan.CONNECTION_CHECKER_FILE);
         context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated."), true);
         return Command.SINGLE_SUCCESS;
     }
 
     private static int listAllBlacklistedIps(CommandContext<ServerCommandSource> context) {
-        for (String ip : AntiScan.IP_CHECKER.getManualBlacklist()) {
+        for (String ip : AntiScan.CONNECTION_CHECKER.getManualBlacklist()) {
             context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
         }
-        int ips = AntiScan.IP_CHECKER.getManualBlacklist().size();
+        int ips = AntiScan.CONNECTION_CHECKER.getManualBlacklist().size();
         context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs manually blacklisted)", ips)), false);
-        for (String ip : AntiScan.IP_CHECKER.getBlacklistCache()) {
+        for (String ip : AntiScan.CONNECTION_CHECKER.getBlacklistCache()) {
             context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
         }
-        int cached = AntiScan.IP_CHECKER.getBlacklistCache().size();
+        int cached = AntiScan.CONNECTION_CHECKER.getBlacklistCache().size();
         context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs automatically blacklisted)", cached)), false);
         return ips + cached;
     }
 
     private static int listBlacklistedIps(CommandContext<ServerCommandSource> context) {
-        for (String ip : AntiScan.IP_CHECKER.getManualBlacklist()) {
+        for (String ip : AntiScan.CONNECTION_CHECKER.getManualBlacklist()) {
             context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
         }
-        int ips = AntiScan.IP_CHECKER.getManualBlacklist().size();
+        int ips = AntiScan.CONNECTION_CHECKER.getManualBlacklist().size();
         context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs)", ips)), false);
         return ips;
     }
@@ -330,7 +330,7 @@ public class CommandHandler implements CommandRegistrationCallback {
     private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
-            if (AntiScan.IP_CHECKER.unBlacklist(ip, true, AntiScan.IP_CHECKER_FILE)) {
+            if (AntiScan.CONNECTION_CHECKER.unBlacklist(ip, true, AntiScan.CONNECTION_CHECKER_FILE)) {
                 context.getSource().sendFeedback(() -> Utils.textOf(String.format("Removed %s from the blacklist!", ip)), true);
                 return Command.SINGLE_SUCCESS;
             }
@@ -356,7 +356,7 @@ public class CommandHandler implements CommandRegistrationCallback {
     }
 
     private static int updateIpBlacklist(CommandContext<ServerCommandSource> context) {
-        AntiScan.IP_CHECKER.update(TimeUnit.HOURS.toMillis(5), AntiScan.IP_CHECKER_FILE);
+        AntiScan.CONNECTION_CHECKER.update(TimeUnit.HOURS.toMillis(5), AntiScan.CONNECTION_CHECKER_FILE);
         context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated if it has not been updated in the last 5 hours. Add \"force\" to do it now."), true);
         return Command.SINGLE_SUCCESS;
     }
@@ -388,7 +388,7 @@ public class CommandHandler implements CommandRegistrationCallback {
     }
 
     private static int reportIp(CommandContext<ServerCommandSource> context) {
-        AntiScan.IP_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
+        AntiScan.CONNECTION_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
         context.getSource().sendFeedback(() -> Utils.textOf("Report sent."), true);
         return Command.SINGLE_SUCCESS;
     }

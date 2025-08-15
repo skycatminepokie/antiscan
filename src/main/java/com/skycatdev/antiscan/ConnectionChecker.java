@@ -25,13 +25,13 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
-public class IpChecker {
-    public static final Codec<IpChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("blacklistCache").forGetter(IpChecker::getBlacklistCache),
-            Codec.LONG.fieldOf("lastUpdated").forGetter(IpChecker::getLastUpdated),
-            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(IpChecker::getManualBlacklist),
-            Codec.STRING.listOf().xmap(IpChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("whitelistCache").forGetter(IpChecker::getWhitelistCache)
-    ).apply(instance, (blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1) -> new IpChecker(blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1, new ConcurrentHashMap<>())));
+public class ConnectionChecker {
+    public static final Codec<ConnectionChecker> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.STRING.listOf().xmap(ConnectionChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("blacklistCache").forGetter(ConnectionChecker::getBlacklistCache),
+            Codec.LONG.fieldOf("lastUpdated").forGetter(ConnectionChecker::getLastUpdated),
+            Codec.STRING.listOf().xmap(ConnectionChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("manualBlacklist").forGetter(ConnectionChecker::getManualBlacklist),
+            Codec.STRING.listOf().xmap(ConnectionChecker::listToConcurrentSet, set -> set.stream().toList()).fieldOf("whitelistCache").forGetter(ConnectionChecker::getWhitelistCache)
+    ).apply(instance, (blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1) -> new ConnectionChecker(blacklistCache1, lastUpdated1, manualBlacklist1, whitelistCache1, new ConcurrentHashMap<>())));
     protected final Set<String> blacklistCache;
     protected final Set<String> manualBlacklist;
     protected final Set<String> whitelistCache;
@@ -39,7 +39,7 @@ public class IpChecker {
     protected final transient Map<String, Long> reportingCache;
     protected final Lock fetchingUpdates = new ReentrantLock();
 
-    protected IpChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache, ConcurrentHashMap<String, Long> reportingCache) {
+    protected ConnectionChecker(Set<String> blacklistCache, long lastUpdated, Set<String> manualBlacklist, Set<String> whitelistCache, ConcurrentHashMap<String, Long> reportingCache) {
         this.blacklistCache = blacklistCache;
         this.lastUpdated = lastUpdated;
         this.manualBlacklist = manualBlacklist;
@@ -53,21 +53,21 @@ public class IpChecker {
         return set;
     }
 
-    public static IpChecker load(File saveFile) throws IOException {
+    public static ConnectionChecker load(File saveFile) throws IOException {
         AntiScan.LOGGER.info("Loading ip blacklist.");
         return Utils.loadFromFile(saveFile, CODEC);
     }
 
-    public static IpChecker loadOrCreate(File saveFile) {
+    public static ConnectionChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
             AntiScan.LOGGER.info("Creating a new ip blacklist.");
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
+            return new ConnectionChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
             AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
-            return new IpChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
+            return new ConnectionChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
     }
 
