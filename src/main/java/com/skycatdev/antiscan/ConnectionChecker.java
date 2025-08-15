@@ -246,7 +246,7 @@ public class ConnectionChecker {
     }
 
     public boolean isBlacklisted(ClientConnection connection) {
-        if (connection.isLocal()) return false;
+        if (!AntiScan.IS_DEV_MODE && connection.isLocal()) return false;
         if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
             String hostString = inetSocketAddress.getHostString();
             return isBlacklisted(hostString);

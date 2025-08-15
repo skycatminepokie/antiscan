@@ -52,7 +52,7 @@ public class Utils {
         boolean good = switch (mode) {
             case MATCH_NONE -> true;
             case MATCH_ALL -> false;
-            case MATCH_IP -> AntiScan.CONNECTION_CHECKER.isBlacklisted(connection);
+            case MATCH_IP -> !AntiScan.CONNECTION_CHECKER.isBlacklisted(connection);
         };
         if (good) {
             allow.run();

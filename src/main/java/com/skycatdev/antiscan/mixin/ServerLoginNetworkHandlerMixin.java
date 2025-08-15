@@ -19,6 +19,6 @@ public abstract class ServerLoginNetworkHandlerMixin {
 
     @WrapMethod(method = "onHello")
     private void antiScan$handleBaddies(LoginHelloC2SPacket packet, Operation<Void> original) {
-        Utils.handleNameIpConnection(connection, packet.name(), AntiScan.CONFIG.getLoginMode(), AntiScan.CONFIG.getLoginAction(), AntiScan.CONFIG.isLoginReport(), original::call);
+        Utils.handleNameIpConnection(connection, packet.name(), AntiScan.CONFIG.getLoginMode(), AntiScan.CONFIG.getLoginAction(), AntiScan.CONFIG.isLoginReport(), () -> original.call(packet));
     }
 }
