@@ -12,7 +12,7 @@ permissions:
   contents: write
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -41,7 +41,7 @@ jobs:
 
       - name: Run Game Tests
         if: ${{ inputs.gameTest }}
-        run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGameTest # ty modmuss
+        run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGametest # ty modmuss
 
       - name: Publish
         run: ./gradlew chiseledPublishMods
