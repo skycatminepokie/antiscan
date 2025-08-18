@@ -30,15 +30,6 @@ jobs:
         if: ${{ runner.os != 'Windows' }}
         run: chmod +x ./gradlew
 
-      - name: Build
-        run: ./gradlew chiseledBuildAndCollect
-
-      - name: Upload JAR Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: JARs
-          path: build/libs/*
-
       - name: Run Game Tests
         if: ${{ inputs.gameTest }}
         run: mkdir build/gametest && echo "eula=true" >> build/gametest/eula.txt && ./gradlew chiseledRunGametest # ty modmuss
