@@ -1,2 +1,1 @@
-- Fixed false reports
-- Fixed errors being logged from scanner connection attempts
+- Fixed logic being broken for certain types of connection handling (thanks ketrab2004 for reporting)

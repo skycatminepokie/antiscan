@@ -13,7 +13,9 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.io.StringReader;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -245,18 +247,31 @@ public class ConnectionChecker {
         return whitelistCache;
     }
 
-    public boolean isBlacklisted(ClientConnection connection) {
-        if (!AntiScan.IS_DEV_MODE && connection.isLocal()) return false;
-        if (connection.getAddress() instanceof InetSocketAddress inetSocketAddress) {
-            String hostString = inetSocketAddress.getHostString();
-            return isBlacklisted(hostString);
-        } else {
-            return false;
+    private boolean isBlacklisted(InetSocketAddress inetSocketAddress) {
+        return isBlacklisted(inetSocketAddress.getHostString());
+    }
+
+    public boolean shouldAllow(SocketAddress address) {
+        if (address instanceof InetSocketAddress inetAddress) {
+            return shouldAllow(inetAddress);
         }
+        return true;
+    }
+
+    public boolean shouldAllow(InetSocketAddress address) {
+        return (!AntiScan.IS_DEV_MODE && isLocal(address.getAddress())) || // If dev mode, local can be blocked
+                whitelistCache.contains(address.getAddress().getHostAddress()) || // Whitelist takes priority over blacklist
+                !isBlacklisted(address); // Must not be blacklisted to join
+    }
+
+    public boolean isLocal(InetAddress address) {
+        // Omitting == InetAddress.getLocalHost because that seems unnecessary, especially since the cache for it is short and it looks like a decently long process.
+        return address.isLoopbackAddress() ||
+        address.isSiteLocalAddress();
     }
 
     public boolean isBlacklisted(String ip) {
-        return blacklistCache.contains(ip) || manualBlacklist.contains(ip) || checkAbuseIpdb(ip);
+        return manualBlacklist.contains(ip) || blacklistCache.contains(ip) || checkAbuseIpdb(ip);
     }
 
     public Future<Boolean> report(String ip, String comment, int[] categories) {
