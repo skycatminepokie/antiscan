@@ -1,40 +1,36 @@
 {
-	"schemaVersion": 1,
-	"id": "antiscan",
-	"version": "${version}",
-	"name": "AntiScan",
-	"description": "Check IPs against AbuseIPDB before admitting people to your server.",
-	"authors": [
-		"skycatminepokie"
-	],
-	"contact": {
-		"sources": "https://github.com/skycatminepokie/antiscan"
-	},
-	"license": "MIT",
-	"icon": "assets/antiscan/icon.png",
-	"environment": "server",
-	"entrypoints": {
-		"main": [
-		],
-		"client": [
-		],
-		"server": [
-			"com.skycatdev.antiscan.AntiScan"
-		],
-		"fabric-datagen": [
-			"com.skycatdev.antiscan.AntiScanDataGenerator"
-		],
-		"fabric-gametest": [
-			"com.skycatdev.antiscan.test.GameTests"
-		]
-	},
-	"mixins": [
-		"antiscan.mixins.json"
-	],
-	"depends": {
-		"fabricloader": ">=${loader_version}",
-		"minecraft": "~${minecraft}",
-		"java": ">=${java}",
-      "fabric-api": ">=${fabric_version}"
-	}
+  "schemaVersion": 1,
+  "id": "${id}",
+  "version": "${version}",
+  "name": "${name}",
+  "description": "Check IPs against AbuseIPDB before admitting people to your server.",
+  "authors": [
+    "skycatminepokie"
+  ],
+  "contact": {
+    "sources": "https://github.com/skycatminepokie/antiscan"
+  },
+  "license": "MIT",
+  "icon": "assets/antiscan/icon.png",
+  "environment": "server",
+  "entrypoints": {
+    "server": [
+      "com.skycatdev.antiscan.Antiscan"
+    ],
+    "fabric-datagen": [
+      "com.skycatdev.antiscan.client.datagen.AntiscanDataGenerator"
+    ]
+  },
+  "mixins": [
+    "antiscan.mixins.json",
+    {
+      "config": "antiscan.client.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=${fabric_loader}",
+    "minecraft": "${minecraft}",
+    "java": ">=${java}"
+  }
 }

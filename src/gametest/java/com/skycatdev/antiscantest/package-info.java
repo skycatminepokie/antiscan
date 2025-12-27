@@ -1,4 +1,4 @@
 @NullMarked
-package com.skycatdev.antiscan;
+package com.skycatdev.antiscantest;
 
 import org.jspecify.annotations.NullMarked;
