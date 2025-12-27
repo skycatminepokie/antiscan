@@ -2,7 +2,7 @@ package com.skycatdev.antiscan;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.util.StringIdentifiable;
+import net.minecraft.util.StringRepresentable;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -158,7 +158,7 @@ public class Config {
     }
 
     public long getBlacklistUpdateCooldown() {
-        return AntiScan.IS_DEV_MODE ? TimeUnit.SECONDS.toMillis(30) : blacklistUpdateCooldown;
+        return Antiscan.IS_DEV_MODE ? TimeUnit.SECONDS.toMillis(30) : blacklistUpdateCooldown;
     }
 
     public void setBlacklistUpdateCooldown(long blacklistUpdateCooldown, @Nullable File saveFile) throws IOException {
@@ -174,13 +174,13 @@ public class Config {
 
     public static Config loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
-            AntiScan.LOGGER.info("Creating a new ip blacklist.");
+            Antiscan.LOGGER.info("Creating a new ip blacklist.");
             return new Config();
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
+            Antiscan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
             return new Config();
         }
     }
@@ -332,7 +332,7 @@ public class Config {
         }
     }
 
-    public enum NameIpMode implements StringIdentifiable {
+    public enum NameIpMode implements StringRepresentable {
         MATCH_ALL("match_all"),
         MATCH_BOTH("match_both"),
         MATCH_IP("match_ip"),
@@ -340,7 +340,7 @@ public class Config {
         MATCH_EITHER("match_either"),
         MATCH_NONE("match_none");
 
-        public static final Codec<NameIpMode> CODEC = StringIdentifiable.createCodec(NameIpMode::values);
+        public static final Codec<NameIpMode> CODEC = StringRepresentable.fromEnum(NameIpMode::values);
         private final String id;
 
         NameIpMode(String id) {
@@ -348,7 +348,7 @@ public class Config {
         }
 
         @Override
-        public String asString() {
+        public String getSerializedName() {
             return id;
         }
 
@@ -365,12 +365,12 @@ public class Config {
         }
     }
 
-    public enum IpMode implements StringIdentifiable {
+    public enum IpMode implements StringRepresentable {
         MATCH_NONE("match_none"),
         MATCH_IP("match_ip"),
         MATCH_ALL("match_all");
 
-        public static final Codec<IpMode> CODEC = StringIdentifiable.createCodec(IpMode::values);
+        public static final Codec<IpMode> CODEC = StringRepresentable.fromEnum(IpMode::values);
         private final String id;
 
         IpMode(String id) {
@@ -378,7 +378,7 @@ public class Config {
         }
 
         @Override
-        public String asString() {
+        public String getSerializedName() {
             return id;
         }
 
@@ -392,12 +392,12 @@ public class Config {
         }
     }
 
-    public enum Action implements StringIdentifiable {
+    public enum Action implements StringRepresentable {
         NOTHING("nothing"),
         DISCONNECT("disconnect"),
         TIMEOUT("timeout");
 
-        public static final Codec<Action> CODEC = StringIdentifiable.createCodec(Action::values);
+        public static final Codec<Action> CODEC = StringRepresentable.fromEnum(Action::values);
         private final String id;
 
         Action(String id) {
@@ -405,7 +405,7 @@ public class Config {
         }
 
         @Override
-        public String asString() {
+        public String getSerializedName() {
             return id;
         }
 

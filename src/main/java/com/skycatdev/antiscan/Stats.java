@@ -20,13 +20,13 @@ public class Stats {
 
     public static Stats loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
-            AntiScan.LOGGER.info("Creating a new stats file.");
+            Antiscan.LOGGER.info("Creating a new stats file.");
             return new Stats(0);
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to load stats from save file. This is NOT a detrimental error.", e);
+            Antiscan.LOGGER.warn("Failed to load stats from save file. This is NOT a detrimental error.", e);
             return new Stats(0);
         }
     }

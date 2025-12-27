@@ -13,7 +13,8 @@ val fabricModules = arrayOf(
     "fabric-resource-loader-v0",
     "fabric-content-registries-v0",
     "fabric-data-generation-api-v1",
-    "fabric-gametest-api-v1"
+    "fabric-gametest-api-v1",
+    "fabric-command-api-v2"
 )
 val requiredJava =
     when {
@@ -34,6 +35,7 @@ repositories {
     }
     strictMaven("https://www.cursemaven.com", "CurseForge", "curse.maven")
     strictMaven("https://api.modrinth.com/maven", "Modrinth", "maven.modrinth")
+    mavenCentral()
 }
 
 dependencies {
@@ -41,7 +43,7 @@ dependencies {
     minecraft("com.mojang:minecraft:${stonecutter.current.version}")
     mappings(loom.officialMojangMappings())
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-
+    include(modImplementation("me.lucko:fabric-permissions-api:${property("deps.permissions_api")}")!!)
     /**
      * Fetches only the required Fabric API modules to not waste time downloading all of them for each version.
      * @see <a href="https://github.com/FabricMC/fabric">List of Fabric API modules</a>

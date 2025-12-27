@@ -3,6 +3,10 @@
   "package": "com.skycatdev.antiscan.mixin",
   "compatibilityLevel": "${java}",
   "mixins": [
+    "EncoderHandlerMixin",
+    "HandshakeMixin",
+    "LoginMixin",
+    "StatusMixin"
   ],
   "injectors": {
     "defaultRequire": 1

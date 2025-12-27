@@ -13,19 +13,19 @@ import com.mojang.brigadier.exceptions.SimpleCommandExceptionType;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.minecraft.command.CommandRegistryAccess;
-import net.minecraft.command.CommandSource;
-import net.minecraft.command.argument.GameProfileArgumentType;
-import net.minecraft.server.command.CommandManager.RegistrationEnvironment;
-import net.minecraft.server.command.ServerCommandSource;
+import net.minecraft.commands.arguments.GameProfileArgument;
+import net.minecraft.commands.CommandBuildContext;
+import net.minecraft.commands.CommandSourceStack;
+import net.minecraft.commands.Commands.CommandSelection;
+import net.minecraft.commands.SharedSuggestionProvider;
 
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.TimeUnit;
 
-import static net.minecraft.server.command.CommandManager.argument;
-import static net.minecraft.server.command.CommandManager.literal;
+import static net.minecraft.commands.Commands.argument;
+import static net.minecraft.commands.Commands.literal;
 
 // I'd love for a better way of the config commands, but the functional one I came up with was more convoluted.
 public class CommandHandler implements CommandRegistrationCallback {
@@ -34,182 +34,182 @@ public class CommandHandler implements CommandRegistrationCallback {
     public static final SimpleCommandExceptionType FAILED_TO_SET_KEY = new SimpleCommandExceptionType(() -> "Failed to set key!");
     public static final SimpleCommandExceptionType FAILED_TO_SET_CONFIG = new SimpleCommandExceptionType(() -> "Failed to set config!");
 
-    private static int blacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int blacklistIp(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
-            if (AntiScan.CONNECTION_CHECKER.blacklist(ip, true, AntiScan.CONNECTION_CHECKER_FILE)) {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Blacklisted %s.", ip)), true);
+            if (Antiscan.CONNECTION_CHECKER.blacklist(ip, true, Antiscan.CONNECTION_CHECKER_FILE)) {
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("Blacklisted %s.", ip)), true);
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was already blacklisted!", ip)), true);
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s was already blacklisted!", ip)), true);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_BLACKLIST.create("ip");
         }
     }
 
-    private static int blacklistName(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int blacklistName(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
             String name = StringArgumentType.getString(context, "name");
-            if (AntiScan.NAME_CHECKER.blacklist(name, AntiScan.NAME_CHECKER_FILE)) {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Blacklisted %s.", name)), true);
+            if (Antiscan.NAME_CHECKER.blacklist(name, Antiscan.NAME_CHECKER_FILE)) {
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("Blacklisted %s.", name)), true);
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was already blacklisted!", name)), true);
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s was already blacklisted!", name)), true);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_BLACKLIST.create("name");
         }
     }
 
-    private static int checkIp(CommandContext<ServerCommandSource> context) {
+    private static int checkIp(CommandContext<CommandSourceStack> context) {
         String ip = StringArgumentType.getString(context, "ip");
-        if (AntiScan.CONNECTION_CHECKER.isBlacklisted(ip)) {
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is blacklisted.", ip)), false);
+        if (Antiscan.CONNECTION_CHECKER.isBlacklisted(ip)) {
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s is blacklisted.", ip)), false);
             return Command.SINGLE_SUCCESS;
         }
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is not blacklisted.", ip)), false);
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s is not blacklisted.", ip)), false);
         return 0;
     }
 
-    private static int checkName(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
-        Collection<GameProfile> profiles = GameProfileArgumentType.getProfileArgument(context, "name");
+    private static int checkName(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
+        Collection<GameProfile> profiles = GameProfileArgument.getGameProfiles(context, "name");
         int blacklisted = 0;
         for (GameProfile profile : profiles) {
-            if (AntiScan.NAME_CHECKER.isBlacklisted(profile.getName())) {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is blacklisted.", profile.getName())), false);
+            if (Antiscan.NAME_CHECKER.isBlacklisted(profile.getName())) {
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s is blacklisted.", profile.getName())), false);
                 blacklisted++;
             } else {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s is not blacklisted.", profile.getName())), false);
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s is not blacklisted.", profile.getName())), false);
             }
         }
         int finalBlacklisted = blacklisted;
         if (profiles.size() != 1) {
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%d/%d are blacklisted.", finalBlacklisted, profiles.size())), false);
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%d/%d are blacklisted.", finalBlacklisted, profiles.size())), false);
         }
         return finalBlacklisted;
     }
 
-    private static int displayHandshakeAction(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Handshake action is %s.", AntiScan.CONFIG.getHandshakeAction().asString())), false);
+    private static int displayHandshakeAction(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Handshake action is %s.", Antiscan.CONFIG.getHandshakeAction().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayHandshakeMode(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Handshake mode is %s.", AntiScan.CONFIG.getHandshakeMode().asString())), false);
+    private static int displayHandshakeMode(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Handshake mode is %s.", Antiscan.CONFIG.getHandshakeMode().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayHandshakeReport(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isHandshakeReport() ? "on" : "off")), false);
+    private static int displayHandshakeReport(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Reporting is %s.", Antiscan.CONFIG.isHandshakeReport() ? "on" : "off")), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayLoginAction(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Login action is %s.", AntiScan.CONFIG.getLoginAction().asString())), false);
+    private static int displayLoginAction(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Login action is %s.", Antiscan.CONFIG.getLoginAction().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayLoginMode(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Login mode is %s.", AntiScan.CONFIG.getLoginMode().asString())), false);
+    private static int displayLoginMode(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Login mode is %s.", Antiscan.CONFIG.getLoginMode().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayLoginReport(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isLoginReport() ? "on" : "off")), false);
+    private static int displayLoginReport(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Reporting is %s.", Antiscan.CONFIG.isLoginReport() ? "on" : "off")), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayPingAction(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Ping action is %s.", AntiScan.CONFIG.getPingAction().asString())), false);
+    private static int displayPingAction(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Ping action is %s.", Antiscan.CONFIG.getPingAction().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayPingMode(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Ping mode is %s.", AntiScan.CONFIG.getPingMode().asString())), false);
+    private static int displayPingMode(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Ping mode is %s.", Antiscan.CONFIG.getPingMode().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayPingReport(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isPingReport() ? "on" : "off")), false);
+    private static int displayPingReport(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Reporting is %s.", Antiscan.CONFIG.isPingReport() ? "on" : "off")), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayQueryAction(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Query action is %s.", AntiScan.CONFIG.getQueryAction().asString())), false);
+    private static int displayQueryAction(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Query action is %s.", Antiscan.CONFIG.getQueryAction().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayQueryMode(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Query mode is %s.", AntiScan.CONFIG.getQueryMode().asString())), false);
+    private static int displayQueryMode(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Query mode is %s.", Antiscan.CONFIG.getQueryMode().getSerializedName())), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayQueryReport(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reporting is %s.", AntiScan.CONFIG.isQueryReport() ? "on" : "off")), false);
+    private static int displayQueryReport(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("Reporting is %s.", Antiscan.CONFIG.isQueryReport() ? "on" : "off")), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int forceUpdateIpBlacklist(CommandContext<ServerCommandSource> context) {
-        AntiScan.CONNECTION_CHECKER.updateNow(AntiScan.CONNECTION_CHECKER_FILE);
-        context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated."), true);
+    private static int forceUpdateIpBlacklist(CommandContext<CommandSourceStack> context) {
+        Antiscan.CONNECTION_CHECKER.updateNow(Antiscan.CONNECTION_CHECKER_FILE);
+        context.getSource().sendSuccess(() -> Utils.textOf("IP blacklist will be updated."), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int listAllBlacklistedIps(CommandContext<ServerCommandSource> context) {
-        for (String ip : AntiScan.CONNECTION_CHECKER.getManualBlacklist()) {
-            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+    private static int listAllBlacklistedIps(CommandContext<CommandSourceStack> context) {
+        for (String ip : Antiscan.CONNECTION_CHECKER.getManualBlacklist()) {
+            context.getSource().sendSuccess(() -> Utils.textOf(ip), false);
         }
-        int ips = AntiScan.CONNECTION_CHECKER.getManualBlacklist().size();
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs manually blacklisted)", ips)), false);
-        for (String ip : AntiScan.CONNECTION_CHECKER.getBlacklistCache()) {
-            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+        int ips = Antiscan.CONNECTION_CHECKER.getManualBlacklist().size();
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("(%d IPs manually blacklisted)", ips)), false);
+        for (String ip : Antiscan.CONNECTION_CHECKER.getBlacklistCache()) {
+            context.getSource().sendSuccess(() -> Utils.textOf(ip), false);
         }
-        int cached = AntiScan.CONNECTION_CHECKER.getBlacklistCache().size();
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs automatically blacklisted)", cached)), false);
+        int cached = Antiscan.CONNECTION_CHECKER.getBlacklistCache().size();
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("(%d IPs automatically blacklisted)", cached)), false);
         return ips + cached;
     }
 
-    private static int listBlacklistedIps(CommandContext<ServerCommandSource> context) {
-        for (String ip : AntiScan.CONNECTION_CHECKER.getManualBlacklist()) {
-            context.getSource().sendFeedback(() -> Utils.textOf(ip), false);
+    private static int listBlacklistedIps(CommandContext<CommandSourceStack> context) {
+        for (String ip : Antiscan.CONNECTION_CHECKER.getManualBlacklist()) {
+            context.getSource().sendSuccess(() -> Utils.textOf(ip), false);
         }
-        int ips = AntiScan.CONNECTION_CHECKER.getManualBlacklist().size();
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d IPs)", ips)), false);
+        int ips = Antiscan.CONNECTION_CHECKER.getManualBlacklist().size();
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("(%d IPs)", ips)), false);
         return ips;
     }
 
-    private static int listBlacklistedNames(CommandContext<ServerCommandSource> context) {
-        for (String name : AntiScan.NAME_CHECKER.getBlacklist()) {
-            context.getSource().sendFeedback(() -> Utils.textOf(name), false);
+    private static int listBlacklistedNames(CommandContext<CommandSourceStack> context) {
+        for (String name : Antiscan.NAME_CHECKER.getBlacklist()) {
+            context.getSource().sendSuccess(() -> Utils.textOf(name), false);
         }
-        int names = AntiScan.NAME_CHECKER.getBlacklist().size();
-        context.getSource().sendFeedback(() -> Utils.textOf(String.format("(%d names)", names)), false);
+        int names = Antiscan.NAME_CHECKER.getBlacklist().size();
+        context.getSource().sendSuccess(() -> Utils.textOf(String.format("(%d names)", names)), false);
         return names;
     }
 
-    private static int displayLogActions(CommandContext<ServerCommandSource> context) {
-        if (AntiScan.CONFIG.shouldLogActions()) {
-            context.getSource().sendFeedback(() -> Utils.textOf("Action logging is on."), false);
+    private static int displayLogActions(CommandContext<CommandSourceStack> context) {
+        if (Antiscan.CONFIG.shouldLogActions()) {
+            context.getSource().sendSuccess(() -> Utils.textOf("Action logging is on."), false);
             return Command.SINGLE_SUCCESS;
         }
-        context.getSource().sendFeedback(() -> Utils.textOf("Action logging is off."), false);
+        context.getSource().sendSuccess(() -> Utils.textOf("Action logging is off."), false);
         return 0;
     }
 
-    private static int setAbuseIpdbKey(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setAbuseIpdbKey(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setAbuseIpdbKey(StringArgumentType.getString(context, "key"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_KEY.create();
         }
-        context.getSource().sendFeedback(() -> Utils.textOf("Set! Make sure to clear your command history (including the file!) or terminal."), false);
+        context.getSource().sendSuccess(() -> Utils.textOf("Set! Make sure to clear your command history (including the file!) or terminal."), false);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setHandshakeAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setHandshakeAction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setHandshakeAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setHandshakeAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -217,9 +217,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setHandshakeMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setHandshakeMode(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setHandshakeMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setHandshakeMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -227,9 +227,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setHandshakeReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setHandshakeReport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setHandshakeReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setHandshakeReport(BoolArgumentType.getBool(context, "report"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -237,9 +237,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setLoginAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setLoginAction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setLoginAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setLoginAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -247,9 +247,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setLoginMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setLoginMode(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setLoginMode(Config.NameIpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setLoginMode(Config.NameIpMode.fromId(StringArgumentType.getString(context, "mode")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -257,9 +257,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setLoginReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setLoginReport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setLoginReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setLoginReport(BoolArgumentType.getBool(context, "report"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -267,9 +267,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setPingAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setPingAction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setPingAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setPingAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -277,9 +277,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setPingMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setPingMode(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setPingMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setPingMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -287,9 +287,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setPingReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setPingReport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setPingReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setPingReport(BoolArgumentType.getBool(context, "report"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -297,9 +297,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setQueryAction(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setQueryAction(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setQueryAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setQueryAction(Config.Action.fromId(StringArgumentType.getString(context, "action")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -307,9 +307,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setQueryMode(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setQueryMode(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setQueryMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setQueryMode(Config.IpMode.fromId(StringArgumentType.getString(context, "mode")), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -317,9 +317,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setQueryReport(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setQueryReport(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setQueryReport(BoolArgumentType.getBool(context, "report"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setQueryReport(BoolArgumentType.getBool(context, "report"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -327,75 +327,75 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int unBlacklistIp(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int unBlacklistIp(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
             String ip = StringArgumentType.getString(context, "ip");
-            if (AntiScan.CONNECTION_CHECKER.unBlacklist(ip, true, AntiScan.CONNECTION_CHECKER_FILE)) {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Removed %s from the blacklist!", ip)), true);
+            if (Antiscan.CONNECTION_CHECKER.unBlacklist(ip, true, Antiscan.CONNECTION_CHECKER_FILE)) {
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("Removed %s from the blacklist!", ip)), true);
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was not blacklisted!", ip)), true);
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s was not blacklisted!", ip)), true);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_UN_BLACKLIST.create("ip");
         }
     }
 
-    private static int unBlacklistName(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int unBlacklistName(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
             String name = StringArgumentType.getString(context, "name");
-            if (AntiScan.NAME_CHECKER.unBlacklist(name, AntiScan.NAME_CHECKER_FILE)) {
-                context.getSource().sendFeedback(() -> Utils.textOf(String.format("Removed %s from the blacklist!", name)), true);
+            if (Antiscan.NAME_CHECKER.unBlacklist(name, Antiscan.NAME_CHECKER_FILE)) {
+                context.getSource().sendSuccess(() -> Utils.textOf(String.format("Removed %s from the blacklist!", name)), true);
                 return Command.SINGLE_SUCCESS;
             }
-            context.getSource().sendFeedback(() -> Utils.textOf(String.format("%s was not blacklisted!", name)), true);
+            context.getSource().sendSuccess(() -> Utils.textOf(String.format("%s was not blacklisted!", name)), true);
             return 0;
         } catch (IOException e) {
             throw FAILED_TO_UN_BLACKLIST.create("name");
         }
     }
 
-    private static int updateIpBlacklist(CommandContext<ServerCommandSource> context) {
-        AntiScan.CONNECTION_CHECKER.update(TimeUnit.HOURS.toMillis(5), AntiScan.CONNECTION_CHECKER_FILE);
-        context.getSource().sendFeedback(() -> Utils.textOf("IP blacklist will be updated if it has not been updated in the last 5 hours. Add \"force\" to do it now."), true);
+    private static int updateIpBlacklist(CommandContext<CommandSourceStack> context) {
+        Antiscan.CONNECTION_CHECKER.update(TimeUnit.HOURS.toMillis(5), Antiscan.CONNECTION_CHECKER_FILE);
+        context.getSource().sendSuccess(() -> Utils.textOf("IP blacklist will be updated if it has not been updated in the last 5 hours. Add \"force\" to do it now."), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setBlacklistUpdateCooldown(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setBlacklistUpdateCooldown(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setBlacklistUpdateCooldown(LongArgumentType.getLong(context, "cooldown"), AntiScan.CONFIG_FILE);
-            context.getSource().sendFeedback(() -> Utils.textOf("Set cooldown!"), false);
+            Antiscan.CONFIG.setBlacklistUpdateCooldown(LongArgumentType.getLong(context, "cooldown"), Antiscan.CONFIG_FILE);
+            context.getSource().sendSuccess(() -> Utils.textOf("Set cooldown!"), false);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayStats(CommandContext<ServerCommandSource> context) {
-        context.getSource().sendFeedback(() -> Utils.textOf("Please wait..."), false);
-        new Thread(() -> context.getSource().sendFeedback(() -> Utils.textOf(String.format("Reports sent: %d", AntiScan.STATS.getIpsReported())), false), "AntiScan Stat Reporting").start();
+    private static int displayStats(CommandContext<CommandSourceStack> context) {
+        context.getSource().sendSuccess(() -> Utils.textOf("Please wait..."), false);
+        new Thread(() -> context.getSource().sendSuccess(() -> Utils.textOf(String.format("Reports sent: %d", Antiscan.STATS.getIpsReported())), false), "Antiscan Stat Reporting").start();
 
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int displayLogReports(CommandContext<ServerCommandSource> context) {
-        if (AntiScan.CONFIG.shouldLogReports()) {
-            context.getSource().sendFeedback(() -> Utils.textOf("Report logging is on."), false);
+    private static int displayLogReports(CommandContext<CommandSourceStack> context) {
+        if (Antiscan.CONFIG.shouldLogReports()) {
+            context.getSource().sendSuccess(() -> Utils.textOf("Report logging is on."), false);
             return Command.SINGLE_SUCCESS;
         }
-        context.getSource().sendFeedback(() -> Utils.textOf("Report logging is off."), false);
+        context.getSource().sendSuccess(() -> Utils.textOf("Report logging is off."), false);
         return 0;
     }
 
-    private static int reportIp(CommandContext<ServerCommandSource> context) {
-        AntiScan.CONNECTION_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with AntiScan for Fabric", new int[]{14});
-        context.getSource().sendFeedback(() -> Utils.textOf("Report sent."), true);
+    private static int reportIp(CommandContext<CommandSourceStack> context) {
+        Antiscan.CONNECTION_CHECKER.report(StringArgumentType.getString(context, "ip"), "Reported manually with Antiscan for Fabric", new int[]{14});
+        context.getSource().sendSuccess(() -> Utils.textOf("Report sent."), true);
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setLogActions(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setLogActions(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setLogActions(BoolArgumentType.getBool(context, "log"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setLogActions(BoolArgumentType.getBool(context, "log"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -403,9 +403,9 @@ public class CommandHandler implements CommandRegistrationCallback {
         return Command.SINGLE_SUCCESS;
     }
 
-    private static int setLogReports(CommandContext<ServerCommandSource> context) throws CommandSyntaxException {
+    private static int setLogReports(CommandContext<CommandSourceStack> context) throws CommandSyntaxException {
         try {
-            AntiScan.CONFIG.setLogReports(BoolArgumentType.getBool(context, "log"), AntiScan.CONFIG_FILE);
+            Antiscan.CONFIG.setLogReports(BoolArgumentType.getBool(context, "log"), Antiscan.CONFIG_FILE);
         } catch (IOException e) {
             throw FAILED_TO_SET_CONFIG.create();
         }
@@ -414,10 +414,10 @@ public class CommandHandler implements CommandRegistrationCallback {
     }
 
     @Override
-    public void register(CommandDispatcher<ServerCommandSource> dispatcher, CommandRegistryAccess registryAccess, RegistrationEnvironment environment) {
-        SuggestionProvider<ServerCommandSource> actionSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.Action.values()).map(Config.Action::asString), builder);
-        SuggestionProvider<ServerCommandSource> ipModeSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.IpMode.values()).map(Config.IpMode::asString), builder);
-        SuggestionProvider<ServerCommandSource> nameIpModeSuggestionProvider = (context, builder) -> CommandSource.suggestMatching(Arrays.stream(Config.NameIpMode.values()).map(Config.NameIpMode::asString), builder);
+    public void register(CommandDispatcher<CommandSourceStack> dispatcher, CommandBuildContext registryAccess, CommandSelection environment) {
+        SuggestionProvider<CommandSourceStack> actionSuggestionProvider = (context, builder) -> SharedSuggestionProvider.suggest(Arrays.stream(Config.Action.values()).map(Config.Action::getSerializedName), builder);
+        SuggestionProvider<CommandSourceStack> ipModeSuggestionProvider = (context, builder) -> SharedSuggestionProvider.suggest(Arrays.stream(Config.IpMode.values()).map(Config.IpMode::getSerializedName), builder);
+        SuggestionProvider<CommandSourceStack> nameIpModeSuggestionProvider = (context, builder) -> SharedSuggestionProvider.suggest(Arrays.stream(Config.NameIpMode.values()).map(Config.NameIpMode::getSerializedName), builder);
 
         var antiScan = literal("antiscan")
                 .requires(Permissions.require("antiscan", 3))
@@ -488,7 +488,7 @@ public class CommandHandler implements CommandRegistrationCallback {
         var nameBlacklistCheck = literal("check")
                 .requires(Permissions.require("antiscan.name.blacklist.check", 3))
                 .build();
-        var nameBlacklistCheckName = argument("name", GameProfileArgumentType.gameProfile())
+        var nameBlacklistCheckName = argument("name", GameProfileArgument.gameProfile())
                 .requires(Permissions.require("antiscan.name.blacklist.check", 3))
                 .executes(CommandHandler::checkName)
                 .build();

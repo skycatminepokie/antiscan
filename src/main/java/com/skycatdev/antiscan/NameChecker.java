@@ -25,19 +25,19 @@ public class NameChecker {
     }
 
     public static NameChecker load(File saveFile) throws IOException {
-        AntiScan.LOGGER.info("Loading username blacklist.");
+        Antiscan.LOGGER.info("Loading username blacklist.");
         return Utils.loadFromFile(saveFile, CODEC);
     }
 
     public static NameChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
-            AntiScan.LOGGER.info("Creating a new name blacklist.");
+            Antiscan.LOGGER.info("Creating a new name blacklist.");
             return new NameChecker(ConcurrentHashMap.newKeySet());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to load name blacklist from save file. This is NOT a detrimental error.", e);
+            Antiscan.LOGGER.warn("Failed to load name blacklist from save file. This is NOT a detrimental error.", e);
             return new NameChecker(ConcurrentHashMap.newKeySet());
         }
     }
@@ -46,7 +46,7 @@ public class NameChecker {
         try {
             return blacklist(name, null);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to save name blacklist. This is NOT a fatal error.", e);
+            Antiscan.LOGGER.warn("Failed to save name blacklist. This is NOT a fatal error.", e);
             return false;
         }
     }
@@ -79,7 +79,7 @@ public class NameChecker {
         try {
             return unBlacklist(name, null);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to save name blacklist, even though we weren't trying?", e);
+            Antiscan.LOGGER.warn("Failed to save name blacklist, even though we weren't trying?", e);
             return false;
         }
     }

@@ -5,7 +5,6 @@ import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.network.ClientConnection;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -56,19 +55,19 @@ public class ConnectionChecker {
     }
 
     public static ConnectionChecker load(File saveFile) throws IOException {
-        AntiScan.LOGGER.info("Loading ip blacklist.");
+        Antiscan.LOGGER.info("Loading ip blacklist.");
         return Utils.loadFromFile(saveFile, CODEC);
     }
 
     public static ConnectionChecker loadOrCreate(File saveFile) {
         if (!saveFile.exists()) {
-            AntiScan.LOGGER.info("Creating a new ip blacklist.");
+            Antiscan.LOGGER.info("Creating a new ip blacklist.");
             return new ConnectionChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
         try {
             return load(saveFile);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
+            Antiscan.LOGGER.warn("Failed to load ip blacklist from save file. This is NOT a detrimental error.", e);
             return new ConnectionChecker(ConcurrentHashMap.newKeySet(), 0, ConcurrentHashMap.newKeySet(), ConcurrentHashMap.newKeySet(), new ConcurrentHashMap<>());
         }
     }
@@ -81,7 +80,7 @@ public class ConnectionChecker {
         try {
             return blacklist(ip, manual, null);
         } catch (IOException e) {
-            AntiScan.LOGGER.warn("Failed to save blacklist, even though we weren't trying?", e);
+            Antiscan.LOGGER.warn("Failed to save blacklist, even though we weren't trying?", e);
             return false;
         }
     }
@@ -104,10 +103,10 @@ public class ConnectionChecker {
      * @return {@code true} if the ip is deemed malicious, {@code false} otherwise (including a failure)
      */
     public boolean checkAbuseIpdb(String ip) {
-        if (AntiScan.CONFIG.getAbuseIpdbKey() == null || whitelistCache.contains(ip) || AntiScan.IS_DEV_MODE) {
+        if (Antiscan.CONFIG.getAbuseIpdbKey() == null || whitelistCache.contains(ip) || Antiscan.IS_DEV_MODE) {
             return false;
         }
-        AntiScan.LOGGER.info("Checking ip '{}'", ip);
+        Antiscan.LOGGER.info("Checking ip '{}'", ip);
         HttpResponse<String> response;
         //? if >=1.20.5
         try (HttpClient client = HttpClient.newHttpClient()) {
@@ -116,14 +115,14 @@ public class ConnectionChecker {
             HttpRequest request = HttpRequest.newBuilder()
                     .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
                     .GET()
-                    .setHeader("Key", AntiScan.CONFIG.getAbuseIpdbKey())
+                    .setHeader("Key", Antiscan.CONFIG.getAbuseIpdbKey())
                     .setHeader("Accept", "application/json")
                     .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
                     .build();
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
-                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                Antiscan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error.", e);
                 return false;
             }
         //? if >=1.20.5
@@ -134,7 +133,7 @@ public class ConnectionChecker {
                 try (JsonReader reader = new JsonReader(new StringReader(response.body()))) {
                     json = Streams.parse(reader);
                 } catch (IOException e) {
-                    AntiScan.LOGGER.warn("Failed to parse ip check from AbuseIPDB. This is NOT a fatal error.", e);
+                    Antiscan.LOGGER.warn("Failed to parse ip check from AbuseIPDB. This is NOT a fatal error.", e);
                     return true;
                 }
                 if (json != null) {
@@ -146,15 +145,15 @@ public class ConnectionChecker {
                     }
                     return safe;
                 } else {
-                    AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was JSON null. This is NOT a fatal error.");
+                    Antiscan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was JSON null. This is NOT a fatal error.");
                     return false;
                 }
             } else {
-                AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                Antiscan.LOGGER.warn("Failed to load ip check from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
                 return false;
             }
         } else {
-            AntiScan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
+            Antiscan.LOGGER.warn("Failed to load ip check from AbuseIPDB - response was null. This is NOT a fatal error.");
             return false;
         }
     }
@@ -176,7 +175,7 @@ public class ConnectionChecker {
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
-                AntiScan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. This is NOT a fatal error.", e);
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. This is NOT a fatal error.", e);
                 return false;
             }
         //? if >=1.20.5
@@ -185,14 +184,14 @@ public class ConnectionChecker {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 blacklistCache.addAll(Arrays.asList(response.body().split("\n")));
             } else {
-                AntiScan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
                 return false;
             }
         } else {
-            AntiScan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB - response was null. This is NOT a fatal error.");
+            Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB - response was null. This is NOT a fatal error.");
             return false;
         }
-        AntiScan.LOGGER.info("Updated IP blacklist from AbuseIPDB.");
+        Antiscan.LOGGER.info("Updated IP blacklist from AbuseIPDB.");
         return true;
     }
 
@@ -211,7 +210,7 @@ public class ConnectionChecker {
             try {
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             } catch (IOException | InterruptedException e) {
-                AntiScan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error.", e);
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error.", e);
                 return false;
             }
         //? if >=1.20.5
@@ -220,14 +219,14 @@ public class ConnectionChecker {
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 blacklistCache.addAll(Arrays.asList(response.body().split("\n")));
             } else {
-                AntiScan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
                 return false;
             }
         } else {
-            AntiScan.LOGGER.warn("Failed to load ip blacklist from hunter - response was null. This is NOT a fatal error.");
+            Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter - response was null. This is NOT a fatal error.");
             return false;
         }
-        AntiScan.LOGGER.info("Updated IP blacklist from Hunter.");
+        Antiscan.LOGGER.info("Updated IP blacklist from Hunter.");
         return true;
     }
 
@@ -259,7 +258,7 @@ public class ConnectionChecker {
     }
 
     public boolean shouldAllow(InetSocketAddress address) {
-        return (!AntiScan.IS_DEV_MODE && isLocal(address.getAddress())) || // If dev mode, local can be blocked
+        return (!Antiscan.IS_DEV_MODE && isLocal(address.getAddress())) || // If dev mode, local can be blocked
                 whitelistCache.contains(address.getAddress().getHostAddress()) || // Whitelist takes priority over blacklist
                 !isBlacklisted(address); // Must not be blacklisted to join
     }
@@ -276,20 +275,20 @@ public class ConnectionChecker {
 
     public Future<Boolean> report(String ip, String comment, int[] categories) {
         FutureTask<Boolean> future = new FutureTask<>(() -> reportNow(ip, comment, categories));
-        new Thread(future, "AntiScan Reporting").start();
+        new Thread(future, "Antiscan Reporting").start();
         return future;
     }
 
     public boolean reportNow(String ip, String comment, int[] categories) {
-        if (AntiScan.IS_DEV_MODE) {
-            AntiScan.STATS.onIpReported(ip);
+        if (Antiscan.IS_DEV_MODE) {
+            Antiscan.STATS.onIpReported(ip);
             return true;
         }
-        if (AntiScan.CONFIG.getAbuseIpdbKey() != null &&
+        if (Antiscan.CONFIG.getAbuseIpdbKey() != null &&
             !ip.equals("127.0.0.1") &&
             ip.matches("\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}") &&
             System.currentTimeMillis() - reportingCache.getOrDefault(ip, 0L) > TimeUnit.MINUTES.toMillis(15)) {
-            AntiScan.STATS.onIpReported(ip);
+            Antiscan.STATS.onIpReported(ip);
             reportingCache.put(ip, System.currentTimeMillis());
             HttpResponse<String> response;
             //? if >=1.20.5
@@ -305,30 +304,30 @@ public class ConnectionChecker {
                                                 .mapToObj(String::valueOf)
                                                 .collect(Collectors.joining(",")),
                                         comment.replaceAll("\\W", "+"))))
-                        .setHeader("Key", AntiScan.CONFIG.getAbuseIpdbKey())
+                        .setHeader("Key", Antiscan.CONFIG.getAbuseIpdbKey())
                         .setHeader("Accept", "application/json")
                         .setHeader("Content-Type", "application/x-www-form-urlencoded")
                         .build();
                 try {
                     response = client.send(request, HttpResponse.BodyHandlers.ofString());
                 } catch (IOException | InterruptedException e) {
-                    AntiScan.LOGGER.warn("Failed to report IP. This is NOT a fatal error.", e);
+                    Antiscan.LOGGER.warn("Failed to report IP. This is NOT a fatal error.", e);
                     return false;
                 }
             //? if >=1.20.5
             }
             if (response != null) {
                 if (response.statusCode() >= 200 && response.statusCode() < 300) {
-                    if (AntiScan.CONFIG.shouldLogReports()) {
-                        AntiScan.LOGGER.info("Reported {}.", ip);
+                    if (Antiscan.CONFIG.shouldLogReports()) {
+                        Antiscan.LOGGER.info("Reported {}.", ip);
                     }
                     return true;
                 } else {
-                    AntiScan.LOGGER.warn("Failed to report IP to AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
+                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. This is NOT a fatal error. Status: {}. Body: {}", response.statusCode(), response.body());
                     return false;
                 }
             } else {
-                AntiScan.LOGGER.warn("Failed to report IP to AbuseIPDB - response was null. This is NOT a fatal error.");
+                Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB - response was null. This is NOT a fatal error.");
                 return false;
             }
         }
@@ -380,7 +379,7 @@ public class ConnectionChecker {
             try {
                 Thread.sleep(TimeUnit.SECONDS.toMillis(random.nextInt(0, 4)));
             } catch (InterruptedException e) {
-                AntiScan.LOGGER.debug("Interrupted while simulating blacklist update. It will still happen.", e);
+                Antiscan.LOGGER.debug("Interrupted while simulating blacklist update. It will still happen.", e);
             }
         }
         if (success) {
@@ -399,23 +398,23 @@ public class ConnectionChecker {
         if (fetchingUpdates.tryLock()) {
             try {
                 lastUpdated = System.currentTimeMillis();
-                AntiScan.LOGGER.info("Updating blacklisted IPs.");
+                Antiscan.LOGGER.info("Updating blacklisted IPs.");
                 whitelistCache.clear();
                 blacklistCache.clear();
                 FutureTask<Boolean> hunter = new FutureTask<>(() -> {
-                    if (AntiScan.IS_DEV_MODE) {
+                    if (Antiscan.IS_DEV_MODE) {
                         Random random = new Random();
                         return simulateUpdate(random.nextBoolean(), false, random);
                     }
                     return fetchFromHunter();
                 });
                 FutureTask<Boolean> abuseIpdb = new FutureTask<>(() -> {
-                    if (AntiScan.IS_DEV_MODE) {
+                    if (Antiscan.IS_DEV_MODE) {
                         Random random = new Random();
                         return simulateUpdate(random.nextBoolean(), false, random);
                     }
-                    if (AntiScan.CONFIG.getAbuseIpdbKey() != null) {
-                        return fetchFromAbuseIpdb(AntiScan.CONFIG.getAbuseIpdbKey());
+                    if (Antiscan.CONFIG.getAbuseIpdbKey() != null) {
+                        return fetchFromAbuseIpdb(Antiscan.CONFIG.getAbuseIpdbKey());
                     }
                     return false;
                 });
@@ -428,13 +427,13 @@ public class ConnectionChecker {
                         }
                         return hunterSucceeded || abuseIpdbSucceeded;
                     } catch (InterruptedException | ExecutionException e) {
-                        AntiScan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
+                        Antiscan.LOGGER.warn("Failed to wait for Hunter and AbuseIPDB threads. This is NOT a fatal error.", e);
                         return false;
                     }
                 });
-                new Thread(hunter, "AntiScan Hunter").start();
-                new Thread(abuseIpdb, "AntiScan AbuseIPDB").start();
-                new Thread(finished, "AntiScan Save").start();
+                new Thread(hunter, "Antiscan Hunter").start();
+                new Thread(abuseIpdb, "Antiscan AbuseIPDB").start();
+                new Thread(finished, "Antiscan Save").start();
                 return finished;
             } finally {
                 fetchingUpdates.unlock();
