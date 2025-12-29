@@ -17,6 +17,9 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Future;
 
 public class IpBlacklistChecker implements ConnectionChecker {
     public static final MapCodec<IpBlacklistChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -40,15 +43,18 @@ public class IpBlacklistChecker implements ConnectionChecker {
         }
     }
 
-    public VerificationStatus check(Connection connection, @Nullable String playerName) {
+    public Future<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
-            synchronized (lock) {
-                if (blacklist.contains(socketAddress.getAddress().getHostAddress())) {
-                    return VerificationStatus.FAIL;
+            return CompletableFuture.supplyAsync(() -> {
+                synchronized (lock) {
+                    if (blacklist.contains(socketAddress.getAddress().getHostAddress())) {
+                        return VerificationStatus.FAIL;
+                    }
                 }
-            }
+                return VerificationStatus.PASS;
+            }, executor);
         }
-        return VerificationStatus.PASS;
+        return CompletableFuture.completedFuture(VerificationStatus.PASS);
     }
 
     @Override
