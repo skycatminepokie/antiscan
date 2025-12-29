@@ -1,7 +1,6 @@
 package com.skycatdev.antiscan.impl;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.api.ConnectionChecker;
@@ -10,10 +9,7 @@ import com.skycatdev.antiscan.api.VerificationStatus;
 import net.minecraft.network.Connection;
 import org.jspecify.annotations.Nullable;
 
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -40,6 +36,26 @@ public class IpBlacklistChecker implements ConnectionChecker {
     private List<String> exportBlacklist() {
         synchronized (lock) {
             return new LinkedList<>(blacklist);
+        }
+    }
+
+    public Future<Boolean> add(String ip, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> addBlocking(ip), executor);
+    }
+
+    public boolean addBlocking(String ip) {
+        synchronized (lock) {
+            return blacklist.add(ip);
+        }
+    }
+
+    public Future<Boolean> remove(String ip, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> removeBlocking(ip), executor);
+    }
+
+    public boolean removeBlocking(String ip) {
+        synchronized (lock) {
+            return blacklist.remove(ip);
         }
     }
 
