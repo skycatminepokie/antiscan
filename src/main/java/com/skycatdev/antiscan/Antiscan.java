@@ -1,5 +1,6 @@
 package com.skycatdev.antiscan;
 
+import com.skycatdev.antiscan.impl.ConnectionCheckers;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
@@ -64,6 +65,7 @@ public class Antiscan implements DedicatedServerModInitializer {
 
     @Override
     public void onInitializeServer() {
+        ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(new CommandHandler());
         //? if >=1.21.5
         ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {

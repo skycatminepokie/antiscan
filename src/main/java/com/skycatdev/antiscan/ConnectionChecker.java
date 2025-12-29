@@ -5,8 +5,8 @@ import com.google.gson.internal.Streams;
 import com.google.gson.stream.JsonReader;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.network.Connection;
 import org.jetbrains.annotations.Contract;
-import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.File;
@@ -48,7 +48,77 @@ public class ConnectionChecker {
         this.reportingCache = reportingCache;
     }
 
-    private static <T> @NotNull Set<T> listToConcurrentSet(List<T> list) {
+    private static boolean handleAction(Config.Action action, boolean report, Connection connection, Runnable allow, @Nullable String hostString) {
+        switch (action) {
+            case NOTHING -> allow.run();
+            case TIMEOUT -> {
+                if (Antiscan.CONFIG.shouldLogActions()) {
+                    Antiscan.LOGGER.info("Timing out {}.", hostString == null ? "connection" : hostString);
+                }
+            }
+            case DISCONNECT -> {
+                if (Antiscan.CONFIG.shouldLogActions()) {
+                    Antiscan.LOGGER.info("Disconnecting {}.", hostString == null ? "connection" : hostString);
+                }
+                connection.disconnect(Utils.translatable("multiplayer.disconnect.generic"));
+            }
+        }
+        if (report && hostString != null) {
+            Antiscan.CONNECTION_CHECKER.report(hostString, "Bad connection attempt. Reported by Antiscan for Fabric.", new int[]{14});
+        }
+        return false;
+    }
+
+    /**
+     *
+     * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
+     */
+    public static boolean handleIpConnection(Connection connection, Config.IpMode mode, Config.Action action, boolean report, Runnable allow) {
+        boolean good = switch (mode) {
+            case MATCH_NONE -> true;
+            case MATCH_ALL -> false;
+            case MATCH_IP -> Antiscan.CONNECTION_CHECKER.shouldAllow(connection.getRemoteAddress());
+        };
+        if (good) {
+            allow.run();
+            return true;
+        } else {
+            @Nullable String hostString = null;
+            if (connection.getRemoteAddress() instanceof InetSocketAddress inetSocketAddress) {
+                hostString = inetSocketAddress.getHostString();
+            }
+            return handleAction(action, report, connection, allow, hostString);
+        }
+    }
+
+    /**
+     *
+     * @return {@code true} if the connection was allowed/good, {@code false} if it was detected as a scanner
+     */
+    public static boolean handleNameIpConnection(Connection connection, String name, Config.NameIpMode mode, Config.Action action, boolean report, Runnable allow) {
+        boolean good = switch (mode) {
+            case MATCH_EITHER ->
+                    !(!Antiscan.CONNECTION_CHECKER.shouldAllow(connection.getRemoteAddress()) || Antiscan.NAME_CHECKER.isBlacklisted(name));
+            case MATCH_NONE -> true;
+            case MATCH_ALL -> false;
+            case MATCH_BOTH ->
+                    !(!Antiscan.CONNECTION_CHECKER.shouldAllow(connection.getRemoteAddress()) && Antiscan.NAME_CHECKER.isBlacklisted(name));
+            case MATCH_IP -> Antiscan.CONNECTION_CHECKER.shouldAllow(connection.getRemoteAddress());
+            case MATCH_NAME -> !Antiscan.NAME_CHECKER.isBlacklisted(name);
+        };
+        if (good) {
+            allow.run();
+            return true;
+        } else {
+            @Nullable String hostString = null;
+            if (connection.getRemoteAddress() instanceof InetSocketAddress inetSocketAddress) {
+                hostString = inetSocketAddress.getHostString();
+            }
+            return handleAction(action, report, connection, allow, hostString);
+        }
+    }
+
+    private static <T> Set<T> listToConcurrentSet(List<T> list) {
         Set<T> set = ConcurrentHashMap.newKeySet();
         set.addAll(list);
         return set;

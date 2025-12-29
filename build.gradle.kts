@@ -92,7 +92,7 @@ tasks {
         inputs.property("id", project.property("mod.id"))
         inputs.property("test_id", project.property("mod.test_id"))
         inputs.property("name", project.property("mod.name"))
-        inputs.property("version", "${project.property("mod.version")}+${stonecutter.current.version}",)
+        inputs.property("version", "${project.property("mod.version")}+${stonecutter.current.version}")
         inputs.property("minecraft", project.property("mod.mc_dep"))
         inputs.property("fabric_loader", project.property("deps.fabric_loader"))
         inputs.property("java", requiredJava)

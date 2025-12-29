@@ -3,7 +3,7 @@ package com.skycatdev.antiscan.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skycatdev.antiscan.Antiscan;
-import com.skycatdev.antiscan.Utils;
+import com.skycatdev.antiscan.ConnectionChecker;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.login.ServerboundHelloPacket;
 import net.minecraft.server.network.ServerLoginPacketListenerImpl;
@@ -19,6 +19,6 @@ public abstract class LoginMixin {
 
     @WrapMethod(method = "handleHello")
     private void antiScan$handleBaddies(ServerboundHelloPacket packet, Operation<Void> original) {
-        Utils.handleNameIpConnection(connection, packet.name(), Antiscan.CONFIG.getLoginMode(), Antiscan.CONFIG.getLoginAction(), Antiscan.CONFIG.isLoginReport(), () -> original.call(packet));
+        ConnectionChecker.handleNameIpConnection(connection, packet.name(), Antiscan.CONFIG.getLoginMode(), Antiscan.CONFIG.getLoginAction(), Antiscan.CONFIG.isLoginReport(), () -> original.call(packet));
     }
 }
