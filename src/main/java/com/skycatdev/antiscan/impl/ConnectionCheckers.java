@@ -8,6 +8,7 @@ import net.minecraft.core.Registry;
 
 public class ConnectionCheckers {
     public static final ConnectionCheckerType<IpBlacklistChecker> IP_BLACKLIST = register("ip_blacklist", IpBlacklistChecker.CODEC);
+    public static final ConnectionCheckerType<IpWhitelistChecker> IP_WHITELIST = register("ip_whitelist", IpWhitelistChecker.CODEC);
 
     public static void init() {
     }
