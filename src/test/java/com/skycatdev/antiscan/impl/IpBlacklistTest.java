@@ -10,14 +10,14 @@ import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IpBlacklistCheckerTest {
+class IpBlacklistTest {
     TestUtil testUtil = new TestUtil();
 
     @Test
     void failsOnMatch() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        IpBlacklistChecker blacklist = new IpBlacklistChecker(new HashSet<>());
+        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
 
         assertThat(blacklist.addBlocking(ip))
                 .isTrue();
@@ -31,7 +31,7 @@ class IpBlacklistCheckerTest {
     void passesWhenEmpty() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        IpBlacklistChecker blacklist = new IpBlacklistChecker(new HashSet<>());
+        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
 
         assertThat(blacklist.check(connection, null, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -43,7 +43,7 @@ class IpBlacklistCheckerTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
         String toBlacklist = testUtil.newIp();
-        IpBlacklistChecker blacklist = new IpBlacklistChecker(new HashSet<>());
+        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
 
         assertThat(blacklist.addBlocking(toBlacklist))
                 .isTrue();
@@ -58,7 +58,7 @@ class IpBlacklistCheckerTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
 
-        IpBlacklistChecker blacklist = new IpBlacklistChecker(new HashSet<>());
+        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
         blacklist.addBlocking(ip);
         blacklist.removeBlocking(ip);
 

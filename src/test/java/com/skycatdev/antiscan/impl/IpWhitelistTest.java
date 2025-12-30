@@ -10,14 +10,14 @@ import java.util.HashSet;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class IpWhitelistCheckerTest {
+class IpWhitelistTest {
     TestUtil testUtil = new TestUtil();
 
     @Test
     void succeedsOnMatch() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        IpWhitelistChecker whitelist = new IpWhitelistChecker(new HashSet<>());
+        IpWhitelist whitelist = new IpWhitelist(new HashSet<>());
 
         assertThat(whitelist.addBlocking(ip))
                 .isTrue();
@@ -31,7 +31,7 @@ class IpWhitelistCheckerTest {
     void passesWhenEmpty() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        IpWhitelistChecker whitelist = new IpWhitelistChecker(new HashSet<>());
+        IpWhitelist whitelist = new IpWhitelist(new HashSet<>());
 
         assertThat(whitelist.check(connection, null, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -43,7 +43,7 @@ class IpWhitelistCheckerTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
         String toWhitelist = testUtil.newIp();
-        IpWhitelistChecker whitelist = new IpWhitelistChecker(new HashSet<>());
+        IpWhitelist whitelist = new IpWhitelist(new HashSet<>());
 
         assertThat(whitelist.addBlocking(toWhitelist))
                 .isTrue();
@@ -58,7 +58,7 @@ class IpWhitelistCheckerTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
 
-        IpWhitelistChecker whitelist = new IpWhitelistChecker(new HashSet<>());
+        IpWhitelist whitelist = new IpWhitelist(new HashSet<>());
         whitelist.addBlocking(ip);
         whitelist.removeBlocking(ip);
 

@@ -17,19 +17,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
-public class IpBlacklistChecker implements ConnectionChecker {
-    public static final MapCodec<IpBlacklistChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            Codec.STRING.listOf().fieldOf("blacklist").forGetter(IpBlacklistChecker::exportBlacklist)
-    ).apply(instance, IpBlacklistChecker::new));
+public class IpBlacklist implements ConnectionChecker {
+    public static final MapCodec<IpBlacklist> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Codec.STRING.listOf().fieldOf("blacklist").forGetter(IpBlacklist::exportBlacklist)
+    ).apply(instance, IpBlacklist::new));
 
     private final HashSet<String> blacklist;
     private final Object lock = new Object[]{};
 
-    public IpBlacklistChecker(List<String> blacklist) {
+    public IpBlacklist(List<String> blacklist) {
         this.blacklist = new HashSet<>(blacklist);
     }
 
-    public IpBlacklistChecker(HashSet<String> blacklist) {
+    public IpBlacklist(HashSet<String> blacklist) {
         this.blacklist = blacklist;
     }
 

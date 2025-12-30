@@ -17,19 +17,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 
-public class IpWhitelistChecker implements ConnectionChecker {
-    public static final MapCodec<IpWhitelistChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            Codec.STRING.listOf().fieldOf("whitelist").forGetter(IpWhitelistChecker::exportWhitelist)
-    ).apply(instance, IpWhitelistChecker::new));
+public class IpWhitelist implements ConnectionChecker {
+    public static final MapCodec<IpWhitelist> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Codec.STRING.listOf().fieldOf("whitelist").forGetter(IpWhitelist::exportWhitelist)
+    ).apply(instance, IpWhitelist::new));
 
     private final HashSet<String> whitelist;
     private final Object lock = new Object[]{};
 
-    public IpWhitelistChecker(List<String> whitelist) {
+    public IpWhitelist(List<String> whitelist) {
         this.whitelist = new HashSet<>(whitelist);
     }
 
-    public IpWhitelistChecker(HashSet<String> whitelist) {
+    public IpWhitelist(HashSet<String> whitelist) {
         this.whitelist = whitelist;
     }
 

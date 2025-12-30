@@ -7,8 +7,8 @@ import com.skycatdev.antiscan.api.ConnectionCheckerType;
 import net.minecraft.core.Registry;
 
 public class ConnectionCheckers {
-    public static final ConnectionCheckerType<IpBlacklistChecker> IP_BLACKLIST = register("ip_blacklist", IpBlacklistChecker.CODEC);
-    public static final ConnectionCheckerType<IpWhitelistChecker> IP_WHITELIST = register("ip_whitelist", IpWhitelistChecker.CODEC);
+    public static final ConnectionCheckerType<IpBlacklist> IP_BLACKLIST = register("ip_blacklist", IpBlacklist.CODEC);
+    public static final ConnectionCheckerType<IpWhitelist> IP_WHITELIST = register("ip_whitelist", IpWhitelist.CODEC);
 
     public static void init() {
     }
