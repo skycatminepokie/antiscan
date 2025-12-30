@@ -4,11 +4,11 @@ import com.mojang.serialization.MapCodec;
 import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.ConnectionCheckerType;
+import com.skycatdev.antiscan.api.VerificationStatus;
 import net.minecraft.core.Registry;
 
 public class ConnectionCheckers {
-    public static final ConnectionCheckerType<IpBlacklist> IP_BLACKLIST = register("ip_blacklist", IpBlacklist.CODEC);
-    public static final ConnectionCheckerType<IpWhitelist> IP_WHITELIST = register("ip_whitelist", IpWhitelist.CODEC);
+    public static final ConnectionCheckerType<VerificationList> LIST = register("list", VerificationList.CODEC);
 
     public static void init() {
     }

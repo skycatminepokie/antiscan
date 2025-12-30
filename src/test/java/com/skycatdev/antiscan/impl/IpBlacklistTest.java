@@ -13,58 +13,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 class IpBlacklistTest {
     TestUtil testUtil = new TestUtil();
 
-    @Test
-    void failsOnMatch() {
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
 
-        assertThat(blacklist.addBlocking(ip))
-                .isTrue();
-
-        assertThat(blacklist.check(connection, null, Runnable::run))
-                .succeedsWithin(Duration.ofNanos(0))
-                .isEqualTo(VerificationStatus.FAIL);
-    }
-
-    @Test
-    void passesWhenEmpty() {
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
-
-        assertThat(blacklist.check(connection, null, Runnable::run))
-                .succeedsWithin(Duration.ofNanos(0))
-                .isEqualTo(VerificationStatus.PASS);
-    }
-
-    @Test
-    void passesWhenNoMatch() {
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        String toBlacklist = testUtil.newIp();
-        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
-
-        assertThat(blacklist.addBlocking(toBlacklist))
-                .isTrue();
-
-        assertThat(blacklist.check(connection, null, Runnable::run))
-                .succeedsWithin(Duration.ofNanos(0))
-                .isEqualTo(VerificationStatus.PASS);
-    }
-
-    @Test
-    void passesWhenRemoved() {
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-
-        IpBlacklist blacklist = new IpBlacklist(new HashSet<>());
-        blacklist.addBlocking(ip);
-        blacklist.removeBlocking(ip);
-
-        assertThat(blacklist.check(connection, null, Runnable::run))
-                .succeedsWithin(Duration.ofNanos(0))
-                .isEqualTo(VerificationStatus.PASS);
-    }
 
 }
