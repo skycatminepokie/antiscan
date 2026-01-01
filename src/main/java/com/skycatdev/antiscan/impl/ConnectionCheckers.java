@@ -9,6 +9,7 @@ import net.minecraft.core.Registry;
 
 public class ConnectionCheckers {
     public static final ConnectionCheckerType<VerificationList> LIST = register("list", VerificationList.CODEC);
+    public static final ConnectionCheckerType<LocalChecker> LOCAL = register("local", LocalChecker.CODEC);
 
     public static void init() {
     }

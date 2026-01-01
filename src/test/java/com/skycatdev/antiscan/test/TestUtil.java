@@ -3,7 +3,9 @@ package com.skycatdev.antiscan.test;
 import net.minecraft.network.Connection;
 
 import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
@@ -14,11 +16,15 @@ public class TestUtil {
 
     public Connection mockConnection(String ip) {
         InetSocketAddress address = mock();
-        Inet4Address fourAddress = mock();
+        Inet4Address fourAddress;
+        try {
+            fourAddress = (Inet4Address) InetAddress.getByName(ip);
+        } catch (UnknownHostException e) {
+            throw new RuntimeException(e);
+        }
         Connection connection = mock();
         when(connection.getRemoteAddress()).thenReturn(address);
         when(address.getAddress()).thenReturn(fourAddress);
-        when(fourAddress.getHostAddress()).thenReturn(ip);
         return connection;
     }
 
