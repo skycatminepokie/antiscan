@@ -10,6 +10,7 @@ import net.minecraft.network.Connection;
 import org.jspecify.annotations.Nullable;
 
 import java.net.InetSocketAddress;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -32,7 +33,6 @@ public class VerificationList implements ConnectionChecker {
      * {@code false} is a username list
      */
     private final boolean isIpList;
-    private final Object lock = new Object[]{};
 
     public VerificationList(List<String> list, boolean isBlacklist, boolean isIpList) {
         this(new HashSet<>(list), isBlacklist, isIpList);
@@ -49,17 +49,17 @@ public class VerificationList implements ConnectionChecker {
     }
 
     public boolean addBlocking(String str) {
-        synchronized (lock) {
+        synchronized (list) {
             return list.add(str);
         }
     }
 
     @Override
-    public Future<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
+    public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         if (isIpList) {
             if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
                 return CompletableFuture.supplyAsync(() -> {
-                    synchronized (lock) {
+                    synchronized (list) {
                         if (list.contains(socketAddress.getAddress().getHostAddress())) {
                             return statusOnMatch();
                         }
@@ -70,7 +70,7 @@ public class VerificationList implements ConnectionChecker {
         } else {
             if (playerName != null) {
                 return CompletableFuture.supplyAsync(() -> {
-                    synchronized (lock) {
+                    synchronized (list) {
                         if (list.contains(playerName)) {
                             return statusOnMatch();
                         }
@@ -82,9 +82,21 @@ public class VerificationList implements ConnectionChecker {
         return CompletableFuture.completedFuture(VerificationStatus.PASS);
     }
 
-    private List<String> exportList() {
-        synchronized (lock) {
+    protected List<String> exportList() {
+        synchronized (list) {
             return new LinkedList<>(list);
+        }
+    }
+
+    public void clear() {
+        synchronized (list) {
+            list.clear();
+        }
+    }
+
+    public void addAll(Collection<String> toAdd) {
+        synchronized (list) {
+            list.addAll(toAdd);
         }
     }
 
@@ -106,12 +118,12 @@ public class VerificationList implements ConnectionChecker {
     }
 
     public boolean removeBlocking(String str) {
-        synchronized (lock) {
+        synchronized (list) {
             return list.remove(str);
         }
     }
 
-    private VerificationStatus statusOnMatch() {
+    protected VerificationStatus statusOnMatch() {
         return isBlacklist ? VerificationStatus.FAIL : VerificationStatus.SUCCEED;
     }
 }
