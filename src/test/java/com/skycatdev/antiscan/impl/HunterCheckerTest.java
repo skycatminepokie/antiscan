@@ -29,9 +29,9 @@ class HunterCheckerTest {
         when(response.body()).thenReturn(ip);
 
         try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.httpRequest(any(), any())).thenReturn(DataResult.success(response));
-            checker.check(connection, null, new BatchTwoBackwardExecutor());
-            mockedUtils.verify(() -> Utils.httpRequest(any(), any()));
+            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.success(response));
+            checker.check(connection, null, Runnable::run);
+            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()));
         }
     }
 
@@ -42,11 +42,11 @@ class HunterCheckerTest {
         Connection connection = testUtil.mockConnection(ip);
 
         try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.httpRequest(any(), any())).thenReturn(DataResult.error(() -> "Forced error."));
+            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "Forced error."));
             assertThat(checker.check(connection, null, Runnable::run))
                     .succeedsWithin(Duration.ofNanos(0))
                     .isEqualTo(VerificationStatus.PASS);
-            mockedUtils.verify(() -> Utils.httpRequest(any(), any()));
+            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()));
         }
     }
 
@@ -59,14 +59,14 @@ class HunterCheckerTest {
         when(response.body()).thenReturn(ip);
 
         try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.httpRequest(any(), any())).thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
+            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
                 Antiscan.LOGGER.info("Sent http request");
                 return DataResult.success(response);
             });
             checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.httpRequest(any(), any())); // 1 request sent
+            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // 1 request sent
             checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.httpRequest(any(), any())); // Still only 1 request sent
+            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // Still only 1 request sent
         }
     }
 

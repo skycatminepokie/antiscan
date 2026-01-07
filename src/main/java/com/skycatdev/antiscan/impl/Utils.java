@@ -9,7 +9,7 @@ import java.net.http.HttpResponse;
 
 public class Utils {
 
-    public static <T> DataResult<HttpResponse<T>> httpRequest(HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler) {
+    public static <T> DataResult<HttpResponse<T>> sendHttpRequest(HttpRequest request, HttpResponse.BodyHandler<T> bodyHandler) {
         // https://curlconverter.com/java/
         HttpResponse<T> response;
         //? if >=1.20.5

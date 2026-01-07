@@ -24,11 +24,14 @@ public class HunterChecker extends VerificationList {
     public static final long DEFAULT_LAST_UPDATED = 0L;
     public static final MapCodec<HunterChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("list").forGetter(VerificationList::exportList),
-            Codec.LONG.fieldOf("last_updated").orElse(DEFAULT_LAST_UPDATED).forGetter(HunterChecker::getLastUpdated),
+            Codec.LONG.optionalFieldOf("last_updated", DEFAULT_LAST_UPDATED).forGetter(HunterChecker::getLastUpdated),
             Codec.LONG.fieldOf("update_delay_sec").orElse(DEFAULT_UPDATE_DELAY).forGetter(HunterChecker::getUpdateDelay) // Magic 10800L - 3 hours
     ).apply(instance, HunterChecker::new));
     public static final String HUNTER_URL = "https://raw.githubusercontent.com/pebblehost/hunter/refs/heads/master/ips.txt";
-    protected final Object lastUpdatedLock = new Object[]{};
+    /**
+     * Locks updateDelay, lastUpdated, and updating from Hunter as a whole.
+     */
+    protected final Object updateLock = new Object[]{};
     /**
      * The minimum number of seconds between each update.
      */
@@ -62,7 +65,7 @@ public class HunterChecker extends VerificationList {
      * Warning: this is blocking. It will mostly be blocked only while updating.
      */
     public long getLastUpdated() {
-        synchronized (lastUpdatedLock) {
+        synchronized (updateLock) {
             return lastUpdated;
         }
     }
@@ -73,7 +76,9 @@ public class HunterChecker extends VerificationList {
     }
 
     private long getUpdateDelay() {
-        return updateDelay;
+        synchronized (updateLock) {
+            return updateDelay;
+        }
     }
 
     /**
@@ -82,7 +87,7 @@ public class HunterChecker extends VerificationList {
      */
     @SuppressWarnings("UnusedReturnValue")
     protected boolean updateIfNeeded() {
-        synchronized (lastUpdatedLock) {
+        synchronized (updateLock) {
             if (System.currentTimeMillis() > lastUpdated + updateDelay * 100) { // Magic 100: ms in 1 sec
                 return updateNow();
             }
@@ -91,7 +96,7 @@ public class HunterChecker extends VerificationList {
     }
 
     protected boolean updateNow() {
-        DataResult<HttpResponse<String>> request = Utils.httpRequest(HttpRequest.newBuilder()
+        DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
                 .uri(URI.create(HUNTER_URL))
                 .GET()
                 .build(), HttpResponse.BodyHandlers.ofString());
@@ -101,7 +106,7 @@ public class HunterChecker extends VerificationList {
             clear();
             // There is a brief time here where the list is empty. I don't think it really matters that much.
             addAll(Arrays.asList(response.body().split("\n")));
-            synchronized (lastUpdatedLock) {
+            synchronized (updateLock) {
                 lastUpdated = System.currentTimeMillis();
             }
             Antiscan.LOGGER.info("Updated IP blacklist from Hunter.");
@@ -109,9 +114,12 @@ public class HunterChecker extends VerificationList {
         } else {
             if (request.hasResultOrPartial()) {
                 HttpResponse<String> response = request.getPartialOrThrow();
-                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter - got a non-2xx status code: {}. Response: {}", response.statusCode(), response.body());
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter - got a non-2xx status code: {}. Response: {}",
+                        response.statusCode(),
+                        response.body());
             } else {
-                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error. Reason: {}", request.error().orElseThrow().message());
+                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error. Reason: {}",
+                        request.error().orElseThrow().message());
             }
             return false;
         }
