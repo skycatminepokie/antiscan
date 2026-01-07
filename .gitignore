@@ -41,3 +41,6 @@ replay_*.log
 
 # stonecutter
 versions/*/logs
+
+# antiscan
+**/.antiscan-do-not-share

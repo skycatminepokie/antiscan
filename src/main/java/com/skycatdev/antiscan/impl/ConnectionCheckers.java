@@ -11,6 +11,7 @@ public class ConnectionCheckers {
     public static final ConnectionCheckerType<VerificationList> LIST = register("list", VerificationList.CODEC);
     public static final ConnectionCheckerType<LocalChecker> LOCAL = register("local", LocalChecker.CODEC);
     public static final ConnectionCheckerType<HunterChecker> HUNTER = register("hunter", HunterChecker.CODEC);
+    public static final ConnectionCheckerType<AbuseIpdbChecker> ABUSE_IPDB = register("abuse_ipdb", AbuseIpdbChecker.CODEC);
 
     public static void init() {
     }
