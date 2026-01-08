@@ -3,8 +3,8 @@ package com.skycatdev.antiscan.api;
 import net.minecraft.util.StringRepresentable;
 
 public enum VerificationStatus implements StringRepresentable {
-    FAIL(-1, "fail"),
-    PASS(0, "pass"),
+    FAIL(0, "fail"),
+    PASS(-1, "pass"),
     SUCCEED(1, "succeed");
 
     private final int priority;
@@ -24,11 +24,11 @@ public enum VerificationStatus implements StringRepresentable {
         return priority > other.priority;
     }
 
-    public VerificationStatus prioritized(VerificationStatus other) {
-        return prioritized(this, other);
+    public VerificationStatus chooseHigher(VerificationStatus other) {
+        return highestPriority(this, other);
     }
 
-    public static VerificationStatus prioritized(VerificationStatus a, VerificationStatus b) {
+    public static VerificationStatus highestPriority(VerificationStatus a, VerificationStatus b) {
         return a.priority > b.priority ? a : b;
     }
 

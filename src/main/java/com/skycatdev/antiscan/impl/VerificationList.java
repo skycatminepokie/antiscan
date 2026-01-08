@@ -34,6 +34,10 @@ public class VerificationList implements ConnectionChecker {
      */
     private final boolean isIpList;
 
+    public VerificationList(boolean isBlacklist, boolean isIpList) {
+        this(new HashSet<>(), isBlacklist, isIpList);
+    }
+
     public VerificationList(List<String> list, boolean isBlacklist, boolean isIpList) {
         this(new HashSet<>(list), isBlacklist, isIpList);
     }

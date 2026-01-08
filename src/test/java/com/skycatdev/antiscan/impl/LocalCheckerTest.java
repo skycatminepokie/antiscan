@@ -14,7 +14,7 @@ class LocalCheckerTest {
 
     @Test
     void succeedsLocalhost() {
-        LocalChecker checker = new LocalChecker();
+        LocalChecker checker = LocalChecker.INSTANCE;
         String ip = "127.0.0.1";
         Connection connection = testUtil.mockConnection(ip);
 
@@ -25,7 +25,7 @@ class LocalCheckerTest {
 
     @Test
     void succeedsPrivate() {
-        LocalChecker checker = new LocalChecker();
+        LocalChecker checker = LocalChecker.INSTANCE;
         String ip = "192.168.0.0";
         Connection connection = testUtil.mockConnection(ip);
 
@@ -36,7 +36,7 @@ class LocalCheckerTest {
 
     @Test
     void passesNonLocal() {
-        LocalChecker checker = new LocalChecker();
+        LocalChecker checker = LocalChecker.INSTANCE;
         Connection connection = testUtil.mockConnection();
 
         assertThat(checker.check(connection, null, Runnable::run))

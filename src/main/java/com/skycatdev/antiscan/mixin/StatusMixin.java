@@ -3,7 +3,6 @@ package com.skycatdev.antiscan.mixin;
 import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skycatdev.antiscan.Antiscan;
-import com.skycatdev.antiscan.ConnectionChecker;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.ping.ServerboundPingRequestPacket;
 import net.minecraft.network.protocol.status.ServerboundStatusRequestPacket;
@@ -20,11 +19,11 @@ public abstract class StatusMixin {
 
     @WrapMethod(method = "handlePingRequest")
     private void antiscan$handleBaddiesPing(ServerboundPingRequestPacket packet, Operation<Void> original) {
-        ConnectionChecker.handleIpConnection(connection, Antiscan.CONFIG.getPingMode(), Antiscan.CONFIG.getPingAction(), Antiscan.CONFIG.isPingReport(), () -> original.call(packet));
+        Antiscan.handleConnection(connection, null, () -> original.call(packet));
     }
 
     @WrapMethod(method = "handleStatusRequest")
     private void antiscan$handleBaddiesQuery(ServerboundStatusRequestPacket packet, Operation<Void> original) {
-        ConnectionChecker.handleIpConnection(connection, Antiscan.CONFIG.getQueryMode(), Antiscan.CONFIG.getQueryAction(), Antiscan.CONFIG.isQueryReport(), () -> original.call(packet));
+        Antiscan.handleConnection(connection, null, () -> original.call(packet));
     }
 }

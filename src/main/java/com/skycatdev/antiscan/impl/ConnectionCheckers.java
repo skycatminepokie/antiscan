@@ -4,7 +4,6 @@ import com.mojang.serialization.MapCodec;
 import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.ConnectionCheckerType;
-import com.skycatdev.antiscan.api.VerificationStatus;
 import net.minecraft.core.Registry;
 
 public class ConnectionCheckers {
@@ -12,6 +11,7 @@ public class ConnectionCheckers {
     public static final ConnectionCheckerType<LocalChecker> LOCAL = register("local", LocalChecker.CODEC);
     public static final ConnectionCheckerType<HunterChecker> HUNTER = register("hunter", HunterChecker.CODEC);
     public static final ConnectionCheckerType<AbuseIpdbChecker> ABUSE_IPDB = register("abuse_ipdb", AbuseIpdbChecker.CODEC);
+    public static final ConnectionCheckerType<MultiChecker> MULTI = register("multi", MultiChecker.CODEC);
 
     public static void init() {
     }

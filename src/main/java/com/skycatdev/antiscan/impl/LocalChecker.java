@@ -10,13 +10,17 @@ import org.jspecify.annotations.Nullable;
 import java.net.InetSocketAddress;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
 
 public class LocalChecker implements ConnectionChecker {
     public static final MapCodec<LocalChecker> CODEC = MapCodec.unit(new LocalChecker());
+    public static final LocalChecker INSTANCE = new LocalChecker();
+
+    private LocalChecker() {
+
+    }
 
     @Override
-    public Future<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
+    public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         if (connection.getRemoteAddress()  instanceof InetSocketAddress socketAddress) {
             // Omitting == InetAddress.getLocalHost because that seems unnecessary, especially since the cache for it is short and it looks like a decently long process.
             if (socketAddress.getAddress().isLoopbackAddress() ||

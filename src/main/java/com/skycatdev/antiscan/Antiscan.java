@@ -1,60 +1,45 @@
 package com.skycatdev.antiscan;
 
+import com.skycatdev.antiscan.api.ConnectionChecker;
+import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.Config;
 import com.skycatdev.antiscan.impl.ConnectionCheckers;
+import com.skycatdev.antiscan.impl.LocalChecker;
+import com.skycatdev.antiscan.impl.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
-import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
-import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.network.Connection;
 import net.minecraft.resources.ResourceLocation;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.File;
-import java.io.IOException;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
+// TODO: filtering annoying log spam from scanners
 public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final String VERSION = /*$ mod_version*/ "0.0.1";
+    public static final String VERSION = /*$ mod_version*/ "0.0.1"; // TODO: bump to 2.0.0
     public static final String MINECRAFT = /*$ minecraft*/ "1.21.7";
-    public static final boolean IS_DEV_MODE = FabricLoader.getInstance().isDevelopmentEnvironment();
-    public static final File CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("antiscan.json").toFile();
-    public static final Config CONFIG = Config.loadOrCreate(CONFIG_FILE);
-    public static final File CONNECTION_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_ips.json").toFile();
-    public static final ConnectionChecker CONNECTION_CHECKER = ConnectionChecker.loadOrCreate(CONNECTION_CHECKER_FILE);
-    public static final File NAME_CHECKER_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_names.json").toFile();
-    public static final NameChecker NAME_CHECKER = NameChecker.loadOrCreate(NAME_CHECKER_FILE);
-    public static final Timer BLACKLIST_UPDATER = new Timer("Antiscan Blacklist Updater", true);
-    public static final File STATS_FILE = FabricLoader.getInstance().getGameDir().resolve("data").resolve("antiscan_stats.json").toFile();
-    public static final Stats STATS = Stats.loadOrCreate(STATS_FILE);
+    public static final Config CONFIG = Config.load();
+    /**
+     * This checker runs first.
+     */
+    private static final ConnectionChecker CHECKER_BATCH_1 = new MultiChecker(List.of(
+            LocalChecker.INSTANCE,
+            CONFIG.ipWhitelist(),
+            CONFIG.ipBlacklist(),
+            CONFIG.nameWhitelist(),
+            CONFIG.nameBlacklist(),
+            CONFIG.hunterChecker()
+    ));
+    /**
+     * This checker runs iff the other one does not succeed. This one should not succeed under any circumstances (it
+     * must be a "blacklist").
+     */
+    private static final ConnectionChecker CHECKER_BATCH_2 = CONFIG.abuseIpdbChecker();
 
-    static {
-        if (!CONNECTION_CHECKER_FILE.getParentFile().exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            CONNECTION_CHECKER_FILE.getParentFile().mkdirs();
-        }
-        if (!NAME_CHECKER_FILE.getParentFile().exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            NAME_CHECKER_FILE.getParentFile().mkdirs();
-        }
-        if (!CONFIG_FILE.getParentFile().exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            CONFIG_FILE.getParentFile().mkdirs();
-        }
-        if (!STATS_FILE.getParentFile().exists()) {
-            //noinspection ResultOfMethodCallIgnored
-            STATS_FILE.getParentFile().mkdirs();
-        }
-
-        BLACKLIST_UPDATER.schedule(new TimerTask() {
-            @Override
-            public void run() {
-                CONNECTION_CHECKER.update(CONFIG.getBlacklistUpdateCooldown(), CONNECTION_CHECKER_FILE);
-            }
-        }, CONFIG.getBlacklistUpdateCooldown(), CONFIG.getBlacklistUpdateCooldown() + 10); // Extra time to please the update delay checker. Maybe a hack, but it doesn't need to be perfect.
-    }
 
     public static ResourceLocation locate(String path) {
         //? if <1.21 {
@@ -66,16 +51,27 @@ public class Antiscan implements DedicatedServerModInitializer {
     @Override
     public void onInitializeServer() {
         ConnectionCheckers.init();
-        CommandRegistrationCallback.EVENT.register(new CommandHandler());
-        //? if >=1.21.5
-        ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> {
-            //? if <1.21.5
-            /*ServerLifecycleEvents.SERVER_STOPPING.register(server -> {*/
-            try {
-                STATS.save(STATS_FILE);
-            } catch (IOException e) {
-                LOGGER.warn("Failed to save Antiscan stats. This is NOT a fatal error.");
+    }
+
+    /**
+     * Warning: blocking
+     */
+    public static void handleConnection(Connection connection, @Nullable String name, Runnable allow) {
+        try {
+            VerificationStatus status = CHECKER_BATCH_1.check(connection, name, Runnable::run).get();
+            if (status == VerificationStatus.SUCCEED) {
+                allow.run();
+            } else if (status == VerificationStatus.FAIL) { // Batch 2 is not allowed to succeed. Therefore, FAIL is the end result.
+                // TODO: punishment
+            } else if (status == VerificationStatus.PASS) {
+                status = CHECKER_BATCH_2.check(connection, name, Runnable::run).get();
+                if (status != VerificationStatus.FAIL) {
+                    allow.run();
+                }
             }
-        });
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.warn("Failed to check connection.", e);
+            allow.run();
+        }
     }
 }
