@@ -17,7 +17,7 @@ class VerificationListTest {
     void ipWhitelistSucceedsOnMatch() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, true);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, true);
 
         assertThat(whitelist.addBlocking(ip))
                 .isTrue();
@@ -31,7 +31,7 @@ class VerificationListTest {
     void ipWhitelistPassesWhenEmpty() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, true);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, true);
 
         assertThat(whitelist.check(connection, null, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -43,7 +43,7 @@ class VerificationListTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
         String toWhitelist = testUtil.newIp();
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, true);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, true);
 
         assertThat(whitelist.addBlocking(toWhitelist))
                 .isTrue();
@@ -58,7 +58,7 @@ class VerificationListTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
 
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, true);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, true);
         whitelist.addBlocking(ip);
         whitelist.removeBlocking(ip);
 
@@ -71,7 +71,7 @@ class VerificationListTest {
     void ipBlacklistFailsOnMatch() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, true);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, true);
 
         assertThat(blacklist.addBlocking(ip))
                 .isTrue();
@@ -85,7 +85,7 @@ class VerificationListTest {
     void ipBlacklistPassesWhenEmpty() {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, true);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, true);
 
         assertThat(blacklist.check(connection, null, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -97,7 +97,7 @@ class VerificationListTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
         String toBlacklist = testUtil.newIp();
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, true);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, true);
 
         assertThat(blacklist.addBlocking(toBlacklist))
                 .isTrue();
@@ -112,7 +112,7 @@ class VerificationListTest {
         String ip = testUtil.newIp();
         Connection connection = testUtil.mockConnection(ip);
 
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, true);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, true);
         blacklist.addBlocking(ip);
         blacklist.removeBlocking(ip);
 
@@ -125,7 +125,7 @@ class VerificationListTest {
     void nameBlacklistFailsOnMatch() {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, false);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, false);
 
         assertThat(blacklist.addBlocking(name))
                 .isTrue();
@@ -139,7 +139,7 @@ class VerificationListTest {
     void nameBlacklistPassesWhenEmpty() {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, false);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, false);
 
         assertThat(blacklist.check(connection, name, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -151,7 +151,7 @@ class VerificationListTest {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
         String toBlacklist = "cow";
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, false);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, false);
 
         assertThat(blacklist.addBlocking(toBlacklist))
                 .isTrue();
@@ -166,7 +166,7 @@ class VerificationListTest {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
 
-        VerificationList blacklist = new VerificationList(new HashSet<>(), true, false);
+        VerificationList blacklist = new VerificationList(new HashSet<>(), VerificationStatus.FAIL, false);
         blacklist.addBlocking(name);
         blacklist.removeBlocking(name);
 
@@ -179,7 +179,7 @@ class VerificationListTest {
     void nameWhitelistSucceedsOnMatch() {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, false);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, false);
 
         assertThat(whitelist.addBlocking(name))
                 .isTrue();
@@ -193,7 +193,7 @@ class VerificationListTest {
     void nameWhitelistPassesWhenEmpty() {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, false);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, false);
 
         assertThat(whitelist.check(connection, name, Runnable::run))
                 .succeedsWithin(Duration.ofNanos(0))
@@ -205,7 +205,7 @@ class VerificationListTest {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
         String toWhitelist = "cow";
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, false);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, false);
 
         assertThat(whitelist.addBlocking(toWhitelist))
                 .isTrue();
@@ -220,7 +220,7 @@ class VerificationListTest {
         String name = "hi";
         Connection connection = testUtil.mockConnection(testUtil.newIp());
 
-        VerificationList whitelist = new VerificationList(new HashSet<>(), false, false);
+        VerificationList whitelist = new VerificationList(new HashSet<>(), VerificationStatus.SUCCEED, false);
         whitelist.addBlocking(name);
         whitelist.removeBlocking(name);
 

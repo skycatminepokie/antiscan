@@ -3,12 +3,11 @@ package com.skycatdev.antiscan.impl;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.Antiscan;
-import com.skycatdev.antiscan.api.ConnectionChecker;
+import com.skycatdev.antiscan.api.VerificationStatus;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.File;
 import java.io.IOException;
-import java.util.List;
 
 public record Config(
         String comment,
@@ -38,10 +37,10 @@ public record Config(
         return new Config(
                 DEFAULT_COMMENT,
                 CONFIG_VERSION,
-                new VerificationList(false, true),
-                new VerificationList(true, true),
-                new VerificationList(false, false),
-                new VerificationList(true, false),
+                new VerificationList(VerificationStatus.SUCCEED, true),
+                new VerificationList(VerificationStatus.FAIL_REPORT, true),
+                new VerificationList(VerificationStatus.SUCCEED, false),
+                new VerificationList(VerificationStatus.FAIL_REPORT, false),
                 new HunterChecker(),
                 new AbuseIpdbChecker()
         );
@@ -64,20 +63,6 @@ public record Config(
         Config config = defaultConfig();
         config.trySave();
         return config;
-    }
-
-    public List<ConnectionChecker> collapseCheckers() {
-        return List.of(
-                new MultiChecker(List.of(
-                        LocalChecker.INSTANCE,
-                        ipWhitelist,
-                        ipBlacklist,
-                        nameWhitelist,
-                        nameBlacklist,
-                        hunterChecker
-                )),
-                abuseIpdbChecker
-        );
     }
 
     public void trySave() {

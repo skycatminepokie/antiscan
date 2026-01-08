@@ -182,6 +182,10 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         return false;
     }
 
+    /**
+     * @return A {@link CompletableFuture} containing {@link VerificationStatus#FAIL} or
+     * {@link VerificationStatus#PASS}. Must not return any other status.
+     */
     @Override
     public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         CompletableFuture.runAsync(this::updateIfNeeded, executor);

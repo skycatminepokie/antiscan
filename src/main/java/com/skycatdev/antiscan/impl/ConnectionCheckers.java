@@ -13,6 +13,7 @@ public class ConnectionCheckers {
     public static final ConnectionCheckerType<AbuseIpdbChecker> ABUSE_IPDB = register("abuse_ipdb", AbuseIpdbChecker.CODEC);
     public static final ConnectionCheckerType<MultiChecker> MULTI = register("multi", MultiChecker.CODEC);
 
+    @SuppressWarnings("EmptyMethod")
     public static void init() {
     }
 

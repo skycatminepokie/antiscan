@@ -5,14 +5,12 @@ import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.VerificationStatus;
 import com.skycatdev.antiscan.test.TestUtil;
 import net.minecraft.network.Connection;
-import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.Test;
 import org.mockito.MockedStatic;
 import org.mockito.stubbing.Answer;
 
 import java.net.http.HttpResponse;
 import java.time.Duration;
-import java.util.concurrent.Executor;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -70,18 +68,4 @@ class HunterCheckerTest {
         }
     }
 
-    static class BatchTwoBackwardExecutor implements Executor {
-        @Nullable Runnable first = null;
-
-        @Override
-        public void execute(Runnable command) {
-            if (first == null) {
-                first = command;
-            } else {
-                command.run();
-                first.run();
-                first = null;
-            }
-        }
-    }
 }

@@ -21,30 +21,30 @@ import java.util.concurrent.Future;
 public class VerificationList implements ConnectionChecker {
     public static final MapCodec<VerificationList> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("list").forGetter(VerificationList::exportList),
-            Codec.BOOL.fieldOf("is_blacklist").forGetter(VerificationList::isBlacklist),
+            VerificationStatus.CODEC.fieldOf("is_blacklist").forGetter(VerificationList::getStatusOnMatch),
             Codec.BOOL.fieldOf("is_ip_list").forGetter(VerificationList::isIpList)
     ).apply(instance, VerificationList::new));
     private final HashSet<String> list;
     /**
-     * {@code false} is a whitelist
+     *
      */
-    private final boolean isBlacklist;
+    private final VerificationStatus statusOnMatch;
     /**
      * {@code false} is a username list
      */
     private final boolean isIpList;
 
-    public VerificationList(boolean isBlacklist, boolean isIpList) {
-        this(new HashSet<>(), isBlacklist, isIpList);
+    public VerificationList(VerificationStatus statusOnMatch, boolean isIpList) {
+        this(new HashSet<>(), statusOnMatch, isIpList);
     }
 
-    public VerificationList(List<String> list, boolean isBlacklist, boolean isIpList) {
-        this(new HashSet<>(list), isBlacklist, isIpList);
+    public VerificationList(List<String> list, VerificationStatus statusOnMatch, boolean isIpList) {
+        this(new HashSet<>(list), statusOnMatch, isIpList);
     }
 
-    public VerificationList(HashSet<String> list, boolean isBlacklist, boolean isIpList) {
+    public VerificationList(HashSet<String> list, VerificationStatus statusOnMatch, boolean isIpList) {
         this.list = list;
-        this.isBlacklist = isBlacklist;
+        this.statusOnMatch = statusOnMatch;
         this.isIpList = isIpList;
     }
 
@@ -65,7 +65,7 @@ public class VerificationList implements ConnectionChecker {
                 return CompletableFuture.supplyAsync(() -> {
                     synchronized (list) {
                         if (list.contains(socketAddress.getAddress().getHostAddress())) {
-                            return statusOnMatch();
+                            return statusOnMatch;
                         }
                     }
                     return VerificationStatus.PASS;
@@ -76,7 +76,7 @@ public class VerificationList implements ConnectionChecker {
                 return CompletableFuture.supplyAsync(() -> {
                     synchronized (list) {
                         if (list.contains(playerName)) {
-                            return statusOnMatch();
+                            return statusOnMatch;
                         }
                     }
                     return VerificationStatus.PASS;
@@ -109,8 +109,8 @@ public class VerificationList implements ConnectionChecker {
         return ConnectionCheckers.LIST;
     }
 
-    public boolean isBlacklist() {
-        return isBlacklist;
+    public VerificationStatus getStatusOnMatch() {
+        return statusOnMatch;
     }
 
     public boolean isIpList() {
@@ -127,7 +127,4 @@ public class VerificationList implements ConnectionChecker {
         }
     }
 
-    protected VerificationStatus statusOnMatch() {
-        return isBlacklist ? VerificationStatus.FAIL : VerificationStatus.SUCCEED;
-    }
 }

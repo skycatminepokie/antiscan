@@ -1,12 +1,16 @@
 package com.skycatdev.antiscan.api;
 
+import com.mojang.serialization.Codec;
 import net.minecraft.util.StringRepresentable;
 
 public enum VerificationStatus implements StringRepresentable {
     FAIL(0, "fail"),
+    FAIL_REPORT(1, "fail_report"),
     PASS(-1, "pass"),
-    SUCCEED(1, "succeed");
+    SUCCEED(2, "succeed");
 
+
+    public static final Codec<VerificationStatus> CODEC = StringRepresentable.fromEnum(VerificationStatus::values);
     private final int priority;
     private final String name;
 
