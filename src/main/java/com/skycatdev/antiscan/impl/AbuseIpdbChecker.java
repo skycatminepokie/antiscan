@@ -19,20 +19,34 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class AbuseIpdbChecker implements ConnectionChecker {
     public static final File KEY_FILE = FabricLoader.getInstance().getGameDir().resolve(".antiscan-do-not-share").toFile();
+    /**
+     * Seconds
+     */
     public static final long DEFAULT_UPDATE_DELAY = TimeUnit.HOURS.toSeconds(6);
+    /**
+     * UNIX epoch millis
+     */
     public static final long DEFAULT_LAST_UPDATED = 0L;
+    /**
+     * Millis
+     */
+    public static final long REPORT_COOLDOWN = TimeUnit.MINUTES.toMillis(16);
     public static final MapCodec<AbuseIpdbChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("blacklist").forGetter(AbuseIpdbChecker::exportBlacklist),
             Codec.LONG.optionalFieldOf("last_updated", DEFAULT_LAST_UPDATED).forGetter(AbuseIpdbChecker::getLastUpdated),
@@ -40,7 +54,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     ).apply(instance, AbuseIpdbChecker::new));
     public static final int ABUSE_CONFIDENCE_THRESHOLD = 90;
     /**
-     * Locks all fields
+     * Locks all fields other than {@link AbuseIpdbChecker#reportTimes}
      */
     protected ReadWriteLock lock = new ReentrantReadWriteLock(true); // Fairness seems important when connections are waiting
     protected @Nullable String key;
@@ -54,6 +68,10 @@ public class AbuseIpdbChecker implements ConnectionChecker {
      */
     private transient HashSet<String> greylist;
     private HashSet<String> blacklist;
+    /**
+     * Ip -> last time reported (UNIX epoch millis)
+     */
+    private transient ConcurrentHashMap<String, Long> reportTimes;
 
     public AbuseIpdbChecker() {
         this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY);
@@ -69,6 +87,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         this.lastUpdated = lastUpdated;
         this.updateDelay = updateDelay;
         this.greylist = new HashSet<>();
+        this.reportTimes = new ConcurrentHashMap<>();
     }
 
     protected static @Nullable String loadKey() {
@@ -103,6 +122,64 @@ public class AbuseIpdbChecker implements ConnectionChecker {
             }
         }
         return null;
+    }
+
+    public CompletableFuture<Boolean> report(String ip, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> reportNow(ip), executor);
+    }
+
+    public CompletableFuture<Boolean> report(Connection connection, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> reportNow(connection), executor);
+    }
+
+    /**
+     * @return {@code true} if reported successfully or on cooldown, {@code false} otherwise
+     */
+    public boolean reportNow(String ip) {
+        lock.readLock().lock();
+        try {
+            if (key == null) return false;
+            long time = System.currentTimeMillis();
+            AtomicBoolean shouldReport = new AtomicBoolean(false);
+            reportTimes.compute(ip, (ipKey, prevTime) -> {
+                if (prevTime == null || System.currentTimeMillis() + REPORT_COOLDOWN > prevTime) {
+                    shouldReport.set(true);
+                    return time;
+                }
+                return prevTime;
+            });
+            if (shouldReport.get()) {
+                DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                String.format("ip=%s&categories=%s&comment=%s",
+                                        URLEncoder.encode(ip, StandardCharsets.UTF_8),
+                                        URLEncoder.encode("14", StandardCharsets.UTF_8), // Category: port scanning
+                                        URLEncoder.encode("Port scan to Minecraft server.", StandardCharsets.UTF_8))))
+                        .setHeader("Key", key)
+                        .setHeader("Accept", "application/json")
+                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                        .build(), HttpResponse.BodyHandlers.ofString());
+
+                if (request.isSuccess()) return true;
+                if (request.hasResultOrPartial()) {
+                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", request.getPartialOrThrow().statusCode());
+                    return false;
+                }
+                Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB.");
+                return false;
+            }
+            return true;
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    public boolean reportNow(Connection connection) {
+        if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
+            return reportNow(socketAddress.getAddress().getHostAddress());
+        }
+        return false;
     }
 
     @Override
