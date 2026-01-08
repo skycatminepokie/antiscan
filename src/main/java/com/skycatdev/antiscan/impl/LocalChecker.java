@@ -22,7 +22,8 @@ public class LocalChecker implements ConnectionChecker {
     @Override
     public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         if (connection.getRemoteAddress()  instanceof InetSocketAddress socketAddress) {
-            // Omitting == InetAddress.getLocalHost because that seems unnecessary, especially since the cache for it is short and it looks like a decently long process.
+            // Omitting == InetAddress.getLocalHost because that seems unnecessary,
+            // especially since the cache for it is short, and it looks like a decently long process.
             if (socketAddress.getAddress().isLoopbackAddress() ||
                 socketAddress.getAddress().isSiteLocalAddress()) {
                 return CompletableFuture.completedFuture(VerificationStatus.SUCCEED);
