@@ -9,7 +9,7 @@ import com.skycatdev.antiscan.impl.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,7 +22,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     public static final String VERSION = /*$ mod_version*/ "0.0.1";// TODO: bump to 2.0.0
-    public static final String MINECRAFT = /*$ minecraft*/ "1.21.7";
+    public static final String MINECRAFT = /*$ minecraft*/ "1.21.11";
     public static final Config CONFIG = Config.load();
     /**
      * This checker runs first.
@@ -36,11 +36,11 @@ public class Antiscan implements DedicatedServerModInitializer {
             CONFIG.hunterChecker()
     ));
 
-    public static ResourceLocation locate(String path) {
+    public static Identifier locate(String path) {
         //? if <1.21 {
-        /*return new ResourceLocation(MOD_ID, path);
+        /*return new Identifier(MOD_ID, path);
         *///?} else
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return Identifier.fromNamespaceAndPath(MOD_ID, path);
     }
 
     @Override
