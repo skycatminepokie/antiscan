@@ -9,7 +9,6 @@ plugins {
 version = "${property("mod.version")}+${stonecutter.current.version}"
 base.archivesName = property("mod.id") as String
 val fabricModules = arrayOf(
-    "fabric-lifecycle-events-v1",
     "fabric-data-generation-api-v1",
     "fabric-gametest-api-v1",
     "fabric-command-api-v2"
