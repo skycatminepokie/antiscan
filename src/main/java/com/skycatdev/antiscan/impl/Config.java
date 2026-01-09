@@ -4,6 +4,9 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.checker.AbuseIpdbChecker;
+import com.skycatdev.antiscan.impl.checker.HunterChecker;
+import com.skycatdev.antiscan.impl.checker.VerificationList;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.File;

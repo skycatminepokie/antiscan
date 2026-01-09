@@ -1,4 +1,4 @@
-package com.skycatdev.antiscan.impl;
+package com.skycatdev.antiscan.impl.checker;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -10,6 +10,7 @@ import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.ConnectionCheckerType;
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.Utils;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.Connection;
 import org.jspecify.annotations.Nullable;

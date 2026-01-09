@@ -1,6 +1,7 @@
 package com.skycatdev.antiscan.impl;
 
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.checker.LocalChecker;
 import com.skycatdev.antiscan.test.TestUtil;
 import net.minecraft.network.Connection;
 import org.junit.jupiter.api.Test;

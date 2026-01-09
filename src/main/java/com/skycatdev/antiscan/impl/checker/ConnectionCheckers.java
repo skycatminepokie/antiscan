@@ -1,4 +1,4 @@
-package com.skycatdev.antiscan.impl;
+package com.skycatdev.antiscan.impl.checker;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;

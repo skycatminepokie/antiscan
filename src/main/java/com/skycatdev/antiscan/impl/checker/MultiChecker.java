@@ -1,7 +1,5 @@
-package com.skycatdev.antiscan.impl;
+package com.skycatdev.antiscan.impl.checker;
 
-import com.mojang.serialization.MapCodec;
-import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.ConnectionCheckerType;
 import com.skycatdev.antiscan.api.VerificationStatus;
