@@ -21,7 +21,7 @@ import java.util.concurrent.ExecutionException;
 public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final String VERSION = /*$ mod_version*/ "0.0.1"; // TODO: bump to 2.0.0
+    public static final String VERSION = /*$ mod_version*/ "0.0.1";// TODO: bump to 2.0.0
     public static final String MINECRAFT = /*$ minecraft*/ "1.21.7";
     public static final Config CONFIG = Config.load();
     /**

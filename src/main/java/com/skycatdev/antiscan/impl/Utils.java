@@ -1,5 +1,6 @@
 package com.skycatdev.antiscan.impl;
 
+//? if >=1.21.5
 import com.google.gson.FormattingStyle;
 import com.google.gson.JsonElement;
 import com.google.gson.internal.Streams;
@@ -22,7 +23,7 @@ public class Utils {
         //? if >=1.20.5
         try (HttpClient client = HttpClient.newHttpClient()) {
             //? if <1.20.5
-            /*HttpClient client = HttpClient.newHttpClient();*/
+            //HttpClient client = HttpClient.newHttpClient();
             try {
                 response = client.send(request, bodyHandler);
             } catch (IOException | InterruptedException e) {
@@ -61,7 +62,7 @@ public class Utils {
             //? if >=1.21.5
             writer.setFormattingStyle(FormattingStyle.PRETTY);
             //? if <1.21.5
-            /*writer.setIndent("  ");*/
+            //writer.setIndent("  ");
             Streams.write(json, writer);
         }
     }
