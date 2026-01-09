@@ -13,11 +13,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class MultiChecker implements ConnectionChecker {
-    // NOPUSH: Make sure this works without recursion problems
-    public static final MapCodec<MultiChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
-            ConnectionChecker.CODEC.listOf().fieldOf("checkers").forGetter(MultiChecker::getCheckers)
-    ).apply(instance, MultiChecker::new));
-
     /**
      * Must be safe for concurrent reading.
      */

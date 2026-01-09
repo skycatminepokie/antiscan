@@ -8,8 +8,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public interface ConnectionChecker {
-    Codec<ConnectionChecker> CODEC = ConnectionCheckerType.REGISTRY.byNameCodec()
-            .dispatch("type", ConnectionChecker::getType, ConnectionCheckerType::codec);
+    Codec<ConnectionChecker> CODEC = Codec.recursive("ConnectionChecker",
+            selfCodec -> ConnectionCheckerType.REGISTRY.byNameCodec().dispatch("type",
+                    ConnectionChecker::getType,
+                    checkerType -> checkerType.codecFunction().apply(selfCodec)));
 
     CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor);
 

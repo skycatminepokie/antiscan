@@ -50,7 +50,7 @@ public class HunterChecker extends VerificationList {
     }
 
     public HunterChecker(HashSet<String> list, long lastUpdated, long updateDelay) {
-        super(list, true, true);
+        super(list, VerificationStatus.FAIL, true);
         this.lastUpdated = lastUpdated;
         this.updateDelay = updateDelay;
     }

@@ -1,5 +1,6 @@
 package com.skycatdev.antiscan.impl;
 
+import com.mojang.serialization.JsonOps;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.VerificationStatus;
 import com.skycatdev.antiscan.test.TestUtil;
@@ -75,6 +76,15 @@ class MultiCheckerTest {
         assertThat(multiChecker.check(connection, null, Runnable::run))
                 .succeedsWithin(Duration.ofMillis(0))
                 .isEqualTo(VerificationStatus.SUCCEED);
+    }
+
+    @Test
+    void testSaveLoad() {
+        MultiChecker checker = new MultiChecker(List.of(LocalChecker.INSTANCE, new VerificationList(VerificationStatus.FAIL, true)));
+        var json = ConnectionChecker.CODEC.encode(checker, JsonOps.INSTANCE, JsonOps.INSTANCE.empty()).getOrThrow();
+        var loaded = ConnectionChecker.CODEC.decode(JsonOps.INSTANCE, json).getOrThrow().getFirst();
+        assertThat(loaded)
+                .isInstanceOf(MultiChecker.class);
     }
 
 }

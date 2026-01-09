@@ -12,8 +12,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
 public class LocalChecker implements ConnectionChecker {
-    public static final MapCodec<LocalChecker> CODEC = MapCodec.unit(new LocalChecker());
     public static final LocalChecker INSTANCE = new LocalChecker();
+    public static final MapCodec<LocalChecker> CODEC = MapCodec.unit(INSTANCE);
 
     private LocalChecker() {
 

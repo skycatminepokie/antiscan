@@ -21,7 +21,7 @@ import java.util.concurrent.Future;
 public class VerificationList implements ConnectionChecker {
     public static final MapCodec<VerificationList> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("list").forGetter(VerificationList::exportList),
-            VerificationStatus.CODEC.fieldOf("is_blacklist").forGetter(VerificationList::getStatusOnMatch),
+            VerificationStatus.CODEC.fieldOf("status_on_match").forGetter(VerificationList::getStatusOnMatch),
             Codec.BOOL.fieldOf("is_ip_list").forGetter(VerificationList::isIpList)
     ).apply(instance, VerificationList::new));
     private final HashSet<String> list;
