@@ -10,8 +10,6 @@ version = "${property("mod.version")}+${stonecutter.current.version}"
 base.archivesName = property("mod.id") as String
 val fabricModules = arrayOf(
     "fabric-lifecycle-events-v1",
-    "fabric-resource-loader-v0",
-    "fabric-content-registries-v0",
     "fabric-data-generation-api-v1",
     "fabric-gametest-api-v1",
     "fabric-command-api-v2"
@@ -43,13 +41,19 @@ dependencies {
     minecraft("com.mojang:minecraft:${stonecutter.current.version}")
     mappings(loom.officialMojangMappings())
     modImplementation("net.fabricmc:fabric-loader:${property("deps.fabric_loader")}")
-    include(modImplementation("me.lucko:fabric-permissions-api:${property("deps.permissions_api")}")!!)
     /**
      * Fetches only the required Fabric API modules to not waste time downloading all of them for each version.
      * @see <a href="https://github.com/FabricMC/fabric">List of Fabric API modules</a>
      */
     for (it in fabricModules) modImplementation(fabricApi.module(it, property("deps.fabric_api") as String))
-
+    "me.lucko:fabric-permissions-api:${property("deps.permissions_api")}".let {
+        include(it) {
+            isTransitive = false
+        }
+        modImplementation(it) {
+            isTransitive = false
+        }
+    }
     testImplementation("net.fabricmc:fabric-loader-junit:${property("deps.fabric_loader")}")
 
     "org.jspecify:jspecify:${property("deps.jspecify")}".let {

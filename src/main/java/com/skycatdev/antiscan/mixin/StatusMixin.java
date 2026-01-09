@@ -4,10 +4,7 @@ import com.llamalad7.mixinextras.injector.wrapmethod.WrapMethod;
 import com.llamalad7.mixinextras.injector.wrapoperation.Operation;
 import com.skycatdev.antiscan.Antiscan;
 import net.minecraft.network.Connection;
-//? if >=1.21
 import net.minecraft.network.protocol.ping.ServerboundPingRequestPacket;
-//? if <1.21
-//import net.minecraft.network.protocol.status.ServerboundPingRequestPacket;
 import net.minecraft.network.protocol.status.ServerboundStatusRequestPacket;
 import net.minecraft.server.network.ServerStatusPacketListenerImpl;
 import org.spongepowered.asm.mixin.Final;

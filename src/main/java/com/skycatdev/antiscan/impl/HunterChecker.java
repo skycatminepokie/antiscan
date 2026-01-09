@@ -16,6 +16,7 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -112,8 +113,14 @@ public class HunterChecker extends VerificationList {
             Antiscan.LOGGER.info("Updated IP blacklist from Hunter.");
             return true;
         } else {
+            //? if >1.20.5 {
             if (request.hasResultOrPartial()) {
                 HttpResponse<String> response = request.getPartialOrThrow();
+            //? } else {
+            /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
+            if (partial.isPresent()) {
+                HttpResponse<String> response = partial.get();
+            *///? }
                 Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter - got a non-2xx status code: {}. Response: {}",
                         response.statusCode(),
                         response.body());

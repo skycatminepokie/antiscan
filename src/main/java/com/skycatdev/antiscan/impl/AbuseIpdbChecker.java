@@ -162,8 +162,15 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                         .build(), HttpResponse.BodyHandlers.ofString());
 
                 if (request.isSuccess()) return true;
+                //? if >1.20.5 {
                 if (request.hasResultOrPartial()) {
-                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", request.getPartialOrThrow().statusCode());
+                    HttpResponse<String> response = request.getPartialOrThrow();
+                //? } else {
+                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
+                if (partial.isPresent()) {
+                    HttpResponse<String> response = partial.get();
+                    *///? }
+                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", response.statusCode());
                     return false;
                 }
                 Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB.");
@@ -254,11 +261,17 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                     return false;
                 }
             } else {
+                //? if >1.20.5 {
                 if (request.hasResultOrPartial()) {
-                    HttpResponse<String> failedResponse = request.getPartialOrThrow();
+                    HttpResponse<String> response = request.getPartialOrThrow();
+                //? } else {
+                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
+                if (partial.isPresent()) {
+                    HttpResponse<String> response = partial.get();
+                *///? }
                     Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
-                            failedResponse.statusCode(),
-                            failedResponse.body());
+                            response.statusCode(),
+                            response.body());
                 } else {
                     Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
                 }
@@ -337,11 +350,17 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                 Antiscan.LOGGER.info("Updated IP blacklist from AbuseIPDB.");
                 return true;
             } else {
+                //? if >1.20.5 {
                 if (request.hasResultOrPartial()) {
-                    HttpResponse<String> failedResponse = request.getPartialOrThrow();
+                    HttpResponse<String> response = request.getPartialOrThrow();
+                //? } else {
+                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
+                if (partial.isPresent()) {
+                    HttpResponse<String> response = partial.get();
+                *///? }
                     Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
-                            failedResponse.statusCode(),
-                            failedResponse.body());
+                            response.statusCode(),
+                            response.body());
                 } else {
                     Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
                 }
