@@ -247,7 +247,10 @@ public class AntiscanCommands {
                             entry);
                     Component clickable = Component.literal("[X]")
                             .setStyle(Style.EMPTY.withColor(TextColor.fromRgb(CommonColors.RED))
+                                    //? if >1.20.5
                                     .withClickEvent(new ClickEvent.SuggestCommand(suggestedCommand)));
+                                    //? if <=1.20.5
+                                    //.withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, suggestedCommand)));
                     response.append(clickable);
                 }
                 return response;

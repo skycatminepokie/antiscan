@@ -17,16 +17,22 @@ import java.net.http.HttpResponse;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+//? if <=1.20.5
+//import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.concurrent.TimeUnit;
 
 public class HunterChecker extends VerificationList {
-    public static final long DEFAULT_UPDATE_DELAY = 10800L;
+    /**
+     * Seconds
+     */
+    public static final long DEFAULT_UPDATE_DELAY = TimeUnit.HOURS.toSeconds(3);
     public static final long DEFAULT_LAST_UPDATED = 0L;
     public static final MapCodec<HunterChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("list").forGetter(VerificationList::exportList),
             Codec.LONG.optionalFieldOf("last_updated", DEFAULT_LAST_UPDATED).forGetter(HunterChecker::getLastUpdated),
-            Codec.LONG.fieldOf("update_delay_sec").orElse(DEFAULT_UPDATE_DELAY).forGetter(HunterChecker::getUpdateDelay) // Magic 10800L - 3 hours
+            Codec.LONG.fieldOf("update_delay_sec").orElse(DEFAULT_UPDATE_DELAY).forGetter(HunterChecker::getUpdateDelay)
     ).apply(instance, HunterChecker::new));
     public static final String HUNTER_URL = "https://raw.githubusercontent.com/pebblehost/hunter/refs/heads/master/ips.txt";
     /**
@@ -89,7 +95,7 @@ public class HunterChecker extends VerificationList {
     @SuppressWarnings("UnusedReturnValue")
     protected boolean updateIfNeeded() {
         synchronized (updateLock) {
-            if (System.currentTimeMillis() > lastUpdated + updateDelay * 100) { // Magic 100: ms in 1 sec
+            if (System.currentTimeMillis() > lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
                 return updateNow();
             }
         }
