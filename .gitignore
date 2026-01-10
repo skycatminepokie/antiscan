@@ -44,5 +44,6 @@ versions/*/logs
 
 # antiscan
 **/.antiscan-do-not-share
+**/antiscan-key-do-not-share
 **/antiscan2.json
 **/.pid*

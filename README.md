@@ -1,6 +1,6 @@
-# AntiScan
+# Antiscan
 
-AntiScan blocks port scanners and reports them for you. Uses [Hunter](https://github.com/pebblehost/hunter) by
+Antiscan blocks port scanners and reports them for you. Uses [Hunter](https://github.com/pebblehost/hunter) by
 PebbleHost and optionally [AbuseIPDB](https://www.abuseipdb.com/) to check IPs and report attempts to scan your server.
 Note that this is NOT a perfect solution, and will NOT keep your server safe on its own. This is meant to be used in
 conjunction with online mode and a whitelist. It also will probably not work behind a proxy like Velocity.
@@ -9,8 +9,8 @@ Adding names/ips to the Antiscan whitelist will whitelist any connection with th
 actually own that account or another source says they are untrustworthy. This will NOT let them bypass online mode (the
 default for servers) - Minecraft's default verification is still there.
 
-Don't share your config file! It will include IPs, including those that you've whitelisted (which are probably the IPs
-of those you know).
+Don't share your `antiscan` folder! It will include IPs, including those that you've whitelisted (which are probably the IPs
+of those you know). It will also include your AbuseIPDB key if you've added it.
 
 ## Set up AbuseIPDB
 
@@ -18,7 +18,7 @@ If you have an AbuseIPDB key, Antiscan can check IPs with it and report the IPs 
 in with your blocked names). To enable this:
 
 1. Start the server with Antiscan installed
-2. Add your key to the newly-generated `.antiscan-do-not-share` file (by the way, don't share that file either)
+2. Add your key to the newly-generated `antiscan/antiscan-key-do-not-share.txt` file (by the way, don't share that file either)
 3. Restart the server
 
 ## Commands (v2, 1.21+)

@@ -35,7 +35,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 public class AbuseIpdbChecker implements ConnectionChecker {
-    public static final File KEY_FILE = FabricLoader.getInstance().getGameDir().resolve(".antiscan-do-not-share").toFile();
+    public static final File KEY_FILE = Antiscan.SAVE_DIRECTORY.resolve("antiscan-key-do-not-share.txt").toFile();
     /**
      * Seconds
      */
@@ -74,7 +74,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     /**
      * Ip -> last time reported (UNIX epoch millis)
      */
-    private final transient ConcurrentHashMap<String, Long> reportTimes;
+    private final transient ConcurrentHashMap<String, Long> reportTimes; // TODO: save this
     /**
      * Time between reporting the same ip, in seconds
      */

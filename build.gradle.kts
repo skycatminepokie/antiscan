@@ -182,7 +182,7 @@ publishMods {
     }
 
     github {
-        accessToken = providers.environmentVariable("GITHUB_TOKEN").get()
+        accessToken = providers.environmentVariable("GITHUB_TOKEN")
         repository = property("publish.github") as String
         commitish = providers.environmentVariable("GITHUB_REF_NAME").getOrElse("master")
     }
@@ -190,7 +190,7 @@ publishMods {
     discord {
         username = "Mod Updates"
         avatarUrl = "https://cataas.com/cat?type=square"
-        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK").get()
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
         content = "# A new version of Antiscan is out!\n$changelog"
     }
 

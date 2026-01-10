@@ -10,6 +10,7 @@ import com.skycatdev.antiscan.impl.checker.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -17,7 +18,9 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
 import java.net.InetSocketAddress;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -26,6 +29,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     @SuppressWarnings("unused") public static final String VERSION = /*$ mod_version*/ "2.0.0";
     @SuppressWarnings("unused") public static final String MINECRAFT = /*$ minecraft*/ "1.21.11";
+    public static final Path SAVE_DIRECTORY = FabricLoader.getInstance().getGameDir().resolve("antiscan");
     public static final Config CONFIG = Config.load();
     /**
      * This checker runs first.
@@ -39,6 +43,23 @@ public class Antiscan implements DedicatedServerModInitializer {
             CONFIG.hunterChecker()
     ));
 
+    static {
+        File saveDirFile = SAVE_DIRECTORY.toFile();
+        if (!saveDirFile.exists()) {
+            if (saveDirFile.mkdir()) {
+                LOGGER.info("Created Antiscan save directory.");
+            } else {
+                LOGGER.error("Failed to create Antiscan save directory.");
+                throw new RuntimeException("Failed to create Antiscan save directory.");
+            }
+        } else {
+            if (!saveDirFile.isDirectory()) {
+                LOGGER.error("Antiscan save directory is not a directory! Perhaps you have a file named 'antiscan' in your root folder - try deleting it if it's not important.");
+                throw new RuntimeException("Antiscan save directory is not a directory!");
+            }
+        }
+    }
+
     public static Identifier locate(String path) {
         //? if <1.21 {
         /*return new Identifier(MOD_ID, path);
@@ -51,6 +72,7 @@ public class Antiscan implements DedicatedServerModInitializer {
         ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> CONFIG.trySave());
+        // TODO: save config on server save
     }
 
     /**
