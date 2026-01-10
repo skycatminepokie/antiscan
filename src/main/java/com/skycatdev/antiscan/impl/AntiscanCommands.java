@@ -21,10 +21,12 @@ import java.util.concurrent.Executors;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
-// TODO: test all this
 public class AntiscanCommands {
-    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor((runnable) ->
-            new Thread(runnable, "Antiscan command executor thread"));
+    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor((runnable) -> {
+        Thread thread = new Thread(runnable, "Antiscan command executor thread");
+        thread.setDaemon(true);
+        return thread;
+    });
     public static final int PARTIAL_LIST_SIZE = 25;
 
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher,
@@ -130,9 +132,6 @@ public class AntiscanCommands {
                 .build();
         var reportIp = argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.report", PermissionLevel.OWNERS))
-                .build();
-        var reportIpReason = argument("reason", StringArgumentType.string())
-                .requires(Permissions.require("antiscan.report", PermissionLevel.OWNERS))
                 .executes(AntiscanCommands::reportIp)
                 .build();
 
@@ -166,7 +165,6 @@ public class AntiscanCommands {
                     whitelistNameRemove.addChild(whitelistNameRemoveName);
         antiscan.addChild(report);
             report.addChild(reportIp);
-                reportIp.addChild(reportIpReason);
         //@formatter:on
     }
 
@@ -238,7 +236,7 @@ public class AntiscanCommands {
         return (context) -> {
             context.getSource().sendSuccess(() -> Component.literal("Please wait..."), false);
             getList(blacklist, ipList).getPart(PARTIAL_LIST_SIZE, EXECUTOR).thenAcceptAsync((listPart) -> context.getSource().sendSuccess(() -> {
-                MutableComponent response = Component.literal(String.format("Showing %d/%d entries:", PARTIAL_LIST_SIZE, listPart.superSize()));
+                MutableComponent response = Component.literal(String.format("Showing %d/%d entries:", Math.min(PARTIAL_LIST_SIZE, listPart.superSize()), listPart.superSize()));
                 for (String entry : listPart.part()) {
                     response.append("\n" + entry + " ");
                     String suggestedCommand = String.format("/antiscan %slist %s remove %s",

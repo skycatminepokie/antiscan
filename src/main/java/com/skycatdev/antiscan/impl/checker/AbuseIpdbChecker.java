@@ -112,7 +112,6 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                 if (KEY_FILE.createNewFile()) {
                     try (PrintWriter writer = new PrintWriter(KEY_FILE)) {
                         writer.println("# Do not share!");
-                        writer.println();
                     }
                     Antiscan.LOGGER.info("Created AbuseIPDB key file.");
                 } else {
