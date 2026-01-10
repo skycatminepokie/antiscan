@@ -17,6 +17,7 @@ import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 
@@ -58,19 +59,26 @@ public class Antiscan implements DedicatedServerModInitializer {
      * Warning: blocking
      */
     public static void handleConnection(Connection connection, @Nullable String name, Runnable allow) {
+        Antiscan.LOGGER.debug("Checking connection...");
         try {
             VerificationStatus status = CHECKER_BATCH_1.check(connection, name, Runnable::run).get();
             switch (status) {
                 case SUCCEED -> allow.run();
-                case FAIL ->  // abuseIpdbChecker is not allowed to succeed. Therefore, FAIL is the end result.
-                        connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
+                case FAIL -> { // abuseIpdbChecker is not allowed to succeed. Therefore, FAIL is the end result.
+                    onBlocked(connection, name);
+                    connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
+                }
                 case FAIL_REPORT -> { // abuseIpdbChecker is not allowed to succeed. Therefore, FAIL_REPORT is the end result.
+                    onBlocked(connection, name);
                     connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
                     CONFIG.abuseIpdbChecker().reportNow(connection);
                 }
                 case PASS -> {
                     status = CONFIG.abuseIpdbChecker().check(connection, name, Runnable::run).get();
                     if (status == VerificationStatus.FAIL) {
+                        onBlocked(connection, name);
+                        connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
+                    } else {
                         allow.run();
                     }
                 }
@@ -78,6 +86,18 @@ public class Antiscan implements DedicatedServerModInitializer {
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.warn("Failed to check connection.", e);
             allow.run();
+        }
+    }
+
+    private static void onBlocked(Connection connection, @Nullable String name) {
+        if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
+            if (name == null) {
+                Antiscan.LOGGER.info("Blocking connection from {}.", socketAddress.getAddress().getHostAddress());
+            } else {
+                Antiscan.LOGGER.info("Blocking connection from {} (attempted as {})", socketAddress.getAddress().getHostAddress(), name);
+            }
+        } else {
+            Antiscan.LOGGER.info("Blocking connection from... somewhere? This probably shouldn't happen.");
         }
     }
 }

@@ -104,9 +104,12 @@ tasks {
 
         val javaAndInjected =
             StringBuilder(requiredJava.majorVersion.toString()).apply {
-                if (fabricModules.isNotEmpty()) {
+                var toDepend = fabricModules.filter {
+                    !it.contains("gametest")
+                }
+                if (toDepend.isNotEmpty()) {
                     append('"')
-                    for (module in fabricModules) {
+                    for (module in toDepend) {
                         append(",\n    \"$module\": \"*\"")
                     }
                     delete(length - 1, length)

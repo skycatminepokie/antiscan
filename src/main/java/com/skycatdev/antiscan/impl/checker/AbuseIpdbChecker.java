@@ -149,6 +149,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                 return prevTime;
             });
             if (shouldReport.get()) {
+                Antiscan.LOGGER.info("Reporting {} to AbuseIpdb", ip);
                 DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
                         .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
                         .POST(HttpRequest.BodyPublishers.ofString(
