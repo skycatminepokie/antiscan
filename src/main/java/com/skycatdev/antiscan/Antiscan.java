@@ -2,11 +2,13 @@ package com.skycatdev.antiscan;
 
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.AntiscanCommands;
 import com.skycatdev.antiscan.impl.Config;
 import com.skycatdev.antiscan.impl.checker.ConnectionCheckers;
 import com.skycatdev.antiscan.impl.checker.LocalChecker;
 import com.skycatdev.antiscan.impl.checker.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
+import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -46,6 +48,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     @Override
     public void onInitializeServer() {
         ConnectionCheckers.init();
+        CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
     }
 
     /**

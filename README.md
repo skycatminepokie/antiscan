@@ -5,48 +5,11 @@ PebbleHost and optionally [AbuseIPDB](https://www.abuseipdb.com/) to check IPs a
 Note that this is NOT a perfect solution, and will NOT keep your server safe on its own. This is meant to be used in
 conjunction with online mode and a whitelist.
 
-## How it works
+## Commands (v2, 1.21+)
 
-When someone attempts to connect to your server, its IP is visible. We can check that IP against trusted databases to
-decide whether to allow the connection. The **mode** is how we decide which connections are good and which are bad.
-If the **mode** *matches* the connection, then it's considered bad, and we take an **action**. An **action** can be
-doing nothing, dropping the connection, or timing out the connection (ignoring it until it goes away). You may choose to
-time out a connection so that scanners have to spend more time on each server they try to connect to. This helps slow
-down attackers, but it works better if more people do it. As you might imagine, this probably will make them annoyed, so
-do with that information what you will.
-
-When you add an AbuseIPDB key, AntiScan will check AbuseIPDB's blacklist about every five hours. This will blacklist
-about 10,000 IPs at a time (and clear old ones, since bad IPs can stop abusing). AntiScan also gains to ability to
-report bad actors when you add a key.
-
-## Stages
-
-There are four things that AntiScan can change right now: handshakes, logins, ping checks, and server queries.
-Handshakes are how you start the login process. They happen *before* usernames are sent, so we can only check IPs at
-that point. When you log in, usernames are sent. This is the default place to stop the process. Queries are what
-Minecraft uses to send you server information on the Multiplayer screen. Ping checks are what shows you your ping on
-the Multiplayer screen.
-
-## Commands
-
-| Command                                                            | Action                                                                                  | Permission node                                           | Default    |
-|--------------------------------------------------------------------|-----------------------------------------------------------------------------------------|-----------------------------------------------------------|------------|
-| `antiscan [ip/name] blacklist add <ip/name>`                       | Manually blacklist an IP/name                                                           | `"antiscan.ip/name.blacklist.add"`                        | OP Level 3 |
-| `antiscan [ip/name] blacklist remove <ip/name>`                    | Remove an IP/name from the manual blacklist                                             | `"antiscan.ip/name.blacklist.remove"`                     | OP Level 3 |
-| `antiscan [ip/name] blacklist check <ip/name>`                     | Check if an IP/name is blacklisted                                                      | `"antiscan.ip/name.blacklist.check"`                      | OP Level 3 |
-| `antiscan [ip/name] blacklist list`                                | List manually blacklisted IPs/names                                                     | `"antiscan.ip/name.blacklist.list"`                       | OP Level 3 |
-| `antiscan ip blacklist list all`                                   | List all blacklisted IPs, including automatically blacklisted ones                      | `"antiscan.ip.blacklist.list.all"`                        | OP Level 3 |
-| `antiscan ip blacklist update`                                     | Update the automatic blacklist                                                          | `"antiscan.ip.blacklist.update"`                          | OP Level 4 |
-| `antiscan ip blacklist update force`                               | Update the automatic blacklist, ignoring rate limits                                    | `"antiscan.ip.blacklist.update.force"`                    | OP Level 4 |
-| `antiscan config abuseIpdbKey <key>`                               | Set the AbuseIPDB key to use                                                            | `"antiscan.config.abuseIpdbKey"`                          | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] mode`                | Get the mode for blocking handshakes/login/pings/queries                                | `"antiscan.config.handshake/login/ping/query.mode"`       | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] mode <mode>`         | Set the mode for blocking handshakes/login/pings/queries                                | `"antiscan.config.handshake/login/ping/query.mode.set"`   | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] action`              | Get the action for handling blocked handshakes/login/pings/queries                      | `"antiscan.config.handshake/login/ping/query.action"`     | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] action <action>`     | Set the action for handling blocked handshakes/login/pings/queries                      | `"antiscan.config.handshake/login/ping/query.action.set"` | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] report`              | Get if blocked handshakes/login/pings/queries are reported                              | `"antiscan.config.handshake/login/ping/query.report"`     | OP Level 4 |
-| `antiscan config [handshake/login/ping/query] report <true/false>` | Set if blocked handshakes/login/pings/queries are reported                              | `"antiscan.config.handshake/login/ping/query.report.set"` | OP Level 4 |
-| `antiscan config log [reports/action]`                             | Get log settings for when reports are made/actions are taken (disconnects and timeouts) | `"antiscan.config.log.reports/actions"`                   | OP Level 4 |
-| `antiscan config log [reports/action] <true/false>`                | Set whether to log when reports are made/actions are taken (disconnects and timeouts)   | `"antiscan.config.log.reports/actions.set"`               | OP Level 4 |
-| `antiscan report <ip>`                                             | Send a report to AbuseIPDB for port scanning                                            | `"antiscan.report"`                                       | OP Level 4 |
-| `antiscan config blacklistUpdateCooldown <milliseconds>`           | Set how long to wait before updating blacklist again (default 5 hours)                  | `"antiscan.config.blacklistUpdateCooldown"`               | OP Level 4 |
-| `antiscan stats`                                                   | Display stats about mod usage                                                           | `"antiscan.stats"`                                        | OP Level 3 |
+| Command                                                         | Action                                       | Permission node                                     | Default    |
+|-----------------------------------------------------------------|----------------------------------------------|-----------------------------------------------------|------------|
+| `antiscan (blacklist\|whitelist) (ip\|name) list`               | Show the contents of a blacklist/whitelist.  | `antiscan.(blacklist\|whitelist).(ip\|name).list`   | Admins (3) |
+| `antiscan (blacklist\|whitelist) (ip\|name) add <to_add>`       | Add something to a blacklist/whitelist.      | `antiscan.(blacklist\|whitelist).(ip\|name).add`    | Owners (4) |
+| `antiscan (blacklist\|whitelist) (ip\|name) remove <to_remove>` | Remove something from a blacklist/whitelist. | `antiscan.(blacklist\|whitelist).(ip\|name).remove` | Owners (3) |
+| `antiscan report <ip> <reason>`                                 | Report an IP to AbuseIPDB for port scanning. | `antiscan.report`                                   | Owners (4) |
