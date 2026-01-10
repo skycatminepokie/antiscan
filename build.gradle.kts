@@ -3,7 +3,7 @@ import org.gradle.kotlin.dsl.stonecutter
 plugins {
     id("net.fabricmc.fabric-loom-remap")
 //    `maven-publish`
-//    id("me.modmuss50.mod-publish-plugin")
+    id("me.modmuss50.mod-publish-plugin")
 }
 
 version = "${property("mod.version")}+${stonecutter.current.version}"
@@ -158,38 +158,43 @@ fabricApi {
     }
 }
 
-/*
 publishMods {
     file = tasks.remapJar.map { it.archiveFile.get() }
     additionalFiles.from(tasks.remapSourcesJar.map { it.archiveFile.get() })
-    displayName = "${property("mod.name")} ${property("mod.version")} for ${stonecutter.current.version}"
+    displayName = "${property("mod.name")} ${property("mod.version")} for ${property("mod.mc_title")}"
     version = property("mod.version") as String
     changelog = rootProject.file("CHANGELOG.md").readText()
     type = STABLE
     modLoaders.add("fabric")
 
-    dryRun = providers.environmentVariable("MODRINTH_TOKEN").getOrNull() == null
-        || providers.environmentVariable("CURSEFORGE_TOKEN").getOrNull() == null
+    dryRun = providers.environmentVariable("MODRINTH_TOKEN").getOrNull() == null ||
+            providers.environmentVariable("GITHUB_TOKEN").getOrNull() == null ||
+            providers.environmentVariable("DISCORD_WEBHOOK").getOrNull() == null
 
     modrinth {
         projectId = property("publish.modrinth") as String
         accessToken = providers.environmentVariable("MODRINTH_TOKEN")
-        minecraftVersions.add(stonecutter.current.version)
+        minecraftVersions.addAll(property("mod.mc_targets").toString().split(' '))
         requires {
             slug = "fabric-api"
         }
+        projectDescription = providers.fileContents(layout.projectDirectory.file("README.md")).asText
     }
 
-    curseforge {
-        projectId = property("publish.curseforge") as String
-        accessToken = providers.environmentVariable("CURSEFORGE_TOKEN")
-        minecraftVersions.add(stonecutter.current.version)
-        requires {
-            slug = "fabric-api"
-        }
+    github {
+        accessToken = providers.environmentVariable("GITHUB_TOKEN").get()
+        repository = property("publish.github") as String
+        commitish = providers.environmentVariable("GITHUB_REF_NAME").getOrElse("master")
     }
+
+    discord {
+        username = "Mod Updates"
+        avatarUrl = "https://cataas.com/cat?type=square"
+        webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK").get()
+        content = "# A new version of Antiscan is out!\n$changelog"
+    }
+
 }
-*/
 /*
 publishing {
     repositories {
