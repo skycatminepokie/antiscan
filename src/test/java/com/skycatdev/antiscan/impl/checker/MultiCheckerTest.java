@@ -1,11 +1,8 @@
-package com.skycatdev.antiscan.impl;
+package com.skycatdev.antiscan.impl.checker;
 
 import com.mojang.serialization.JsonOps;
 import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.VerificationStatus;
-import com.skycatdev.antiscan.impl.checker.LocalChecker;
-import com.skycatdev.antiscan.impl.checker.MultiChecker;
-import com.skycatdev.antiscan.impl.checker.VerificationList;
 import com.skycatdev.antiscan.test.TestUtil;
 import net.minecraft.network.Connection;
 import org.junit.jupiter.api.Test;
