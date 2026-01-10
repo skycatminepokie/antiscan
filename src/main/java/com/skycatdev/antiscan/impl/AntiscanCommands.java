@@ -1,7 +1,9 @@
 package com.skycatdev.antiscan.impl;
 
+import com.mojang.brigadier.Command;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.context.CommandContext;
 import me.lucko.fabric.api.permissions.v0.Permissions;
 import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
@@ -25,44 +27,44 @@ public class AntiscanCommands {
         var blacklistIp = literal("ip")
                 .requires(Permissions.require("antiscan.blacklist.ip", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var blacklistIpList = literal("list")
                 .requires(Permissions.require("antiscan.blacklist.ip.list", PermissionLevel.ADMINS))
+                .executes(showList(true, true))
                 .build();
         var blacklistIpAdd = literal("add")
                 .requires(Permissions.require("antiscan.blacklist.ip.add", PermissionLevel.OWNERS))
                 .build();
-        // NOPUSH executes
         var blacklistIpAddIp = argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.blacklist.ip.add", PermissionLevel.OWNERS))
+                .executes(modifyList(true, true, true))
                 .build();
         var blacklistIpRemove = literal("remove")
                 .requires(Permissions.require("antiscan.blacklist.ip.remove", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var blacklistIpRemoveIp= argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.blacklist.ip.remove", PermissionLevel.ADMINS))
+                .executes(modifyList(true, true, false))
                 .build();
         var blacklistName = literal("name")
                 .requires(Permissions.require("antiscan.blacklist.name", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var blacklistNameList = literal("list")
                 .requires(Permissions.require("antiscan.blacklist.name.list", PermissionLevel.ADMINS))
+                .executes(showList(true, false))
                 .build();
         var blacklistNameAdd = literal("add")
                 .requires(Permissions.require("antiscan.blacklist.name.add", PermissionLevel.OWNERS))
                 .build();
-        // NOPUSH executes
         var blacklistNameAddName = argument("name", GameProfileArgument.gameProfile())
                 .requires(Permissions.require("antiscan.blacklist.name.add", PermissionLevel.OWNERS))
+                .executes(modifyList(true, false, true))
                 .build();
         var blacklistNameRemove = literal("remove")
                 .requires(Permissions.require("antiscan.blacklist.name.remove", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var blacklistNameRemoveName = argument("name", GameProfileArgument.gameProfile())
                 .requires(Permissions.require("antiscan.blacklist.name.remove", PermissionLevel.ADMINS))
+                .executes(modifyList(true, false, false))
                 .build();
 
         var whitelist = literal("whitelist")
@@ -71,44 +73,44 @@ public class AntiscanCommands {
         var whitelistIp = literal("ip")
                 .requires(Permissions.require("antiscan.whitelist.ip", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var whitelistIpList = literal("list")
                 .requires(Permissions.require("antiscan.whitelist.ip.list", PermissionLevel.ADMINS))
+                .executes(showList(false, true))
                 .build();
         var whitelistIpAdd = literal("add")
                 .requires(Permissions.require("antiscan.whitelist.ip.add", PermissionLevel.OWNERS))
                 .build();
-        // NOPUSH executes
         var whitelistIpAddIp = argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.whitelist.ip.add", PermissionLevel.OWNERS))
+                .executes(modifyList(false, true, true))
                 .build();
         var whitelistIpRemove = literal("remove")
                 .requires(Permissions.require("antiscan.whitelist.ip.remove", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var whitelistIpRemoveIp= argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.whitelist.ip.remove", PermissionLevel.ADMINS))
+                .executes(modifyList(false, true, false))
                 .build();
         var whitelistName = literal("name")
                 .requires(Permissions.require("antiscan.whitelist.name", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var whitelistNameList = literal("list")
                 .requires(Permissions.require("antiscan.whitelist.name.list", PermissionLevel.ADMINS))
+                .executes(showList(false, false))
                 .build();
         var whitelistNameAdd = literal("add")
                 .requires(Permissions.require("antiscan.whitelist.name.add", PermissionLevel.OWNERS))
                 .build();
-        // NOPUSH executes
         var whitelistNameAddName = argument("name", GameProfileArgument.gameProfile())
                 .requires(Permissions.require("antiscan.whitelist.name.add", PermissionLevel.OWNERS))
+                .executes(modifyList(false, false, true))
                 .build();
         var whitelistNameRemove = literal("remove")
                 .requires(Permissions.require("antiscan.whitelist.name.remove", PermissionLevel.ADMINS))
                 .build();
-        // NOPUSH executes
         var whitelistNameRemoveName = argument("name", GameProfileArgument.gameProfile())
                 .requires(Permissions.require("antiscan.whitelist.name.remove", PermissionLevel.ADMINS))
+                .executes(modifyList(false, false, false))
                 .build();
 
         var report = literal("report")
@@ -117,9 +119,9 @@ public class AntiscanCommands {
         var reportIp = argument("ip", StringArgumentType.word())
                 .requires(Permissions.require("antiscan.report", PermissionLevel.OWNERS))
                 .build();
-        // NOPUSH executes
         var reportIpReason = argument("reason", StringArgumentType.string())
                 .requires(Permissions.require("antiscan.report", PermissionLevel.OWNERS))
+                .executes(AntiscanCommands::reportIp)
                 .build();
 
         //@formatter:off
@@ -154,5 +156,17 @@ public class AntiscanCommands {
             report.addChild(reportIp);
                 reportIp.addChild(reportIpReason);
         //@formatter:on
+    }
+
+    private static int reportIp(CommandContext<CommandSourceStack> context) {
+        // NOPUSH
+    }
+
+    private static Command<CommandSourceStack> modifyList(boolean blacklist, boolean ipList, boolean add) {
+        // NOPUSH
+    }
+
+    private static Command<CommandSourceStack> showList(boolean blacklist, boolean ipList) {
+        // NOPUSH
     }
 }
