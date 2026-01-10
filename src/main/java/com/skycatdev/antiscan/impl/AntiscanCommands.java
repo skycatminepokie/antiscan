@@ -171,7 +171,16 @@ public class AntiscanCommands {
     }
 
     private static int reportIp(CommandContext<CommandSourceStack> context) {
-        // STOPSHIP
+        String ip = StringArgumentType.getString(context, "ip");
+        context.getSource().sendSuccess(() -> Component.literal("Reporting " + ip + "..."), false);
+        Antiscan.CONFIG.abuseIpdbChecker().report(ip, EXECUTOR).thenAcceptAsync(success -> {
+            if (success) {
+                context.getSource().sendSuccess(() -> Component.literal("Successfully reported " + ip + "."), false);
+            } else {
+                context.getSource().sendFailure(Component.literal("Failed to report " + ip + "."));
+            }
+        }, context.getSource().getServer());
+        return 1;
     }
 
     private static Command<CommandSourceStack> modifyList(boolean blacklist, boolean ipList, boolean add) {
@@ -184,7 +193,7 @@ public class AntiscanCommands {
                 } else {
                     context.getSource().sendFailure(endModifyMessage(blacklist, target, add, false));
                 }
-            }, EXECUTOR);
+            }, context.getSource().getServer());
             return 1;
         };
     }
@@ -242,7 +251,7 @@ public class AntiscanCommands {
                     response.append(clickable);
                 }
                 return response;
-            }, false), EXECUTOR);
+            }, false), context.getSource().getServer());
             return 1;
         };
     }
