@@ -45,15 +45,17 @@ public class AbuseIpdbChecker implements ConnectionChecker {
      */
     public static final long DEFAULT_LAST_UPDATED = 0L;
     /**
-     * Millis
+     * Seconds
      */
-    public static final long REPORT_COOLDOWN = TimeUnit.MINUTES.toMillis(16);
+    public static final long DEFAULT_REPORT_COOLDOWN = TimeUnit.HOURS.toSeconds(24);
     public static final MapCodec<AbuseIpdbChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("blacklist").forGetter(AbuseIpdbChecker::exportBlacklist),
             Codec.LONG.optionalFieldOf("last_updated", DEFAULT_LAST_UPDATED).forGetter(AbuseIpdbChecker::getLastUpdated),
-            Codec.LONG.fieldOf("update_delay_seconds").orElse(DEFAULT_UPDATE_DELAY).forGetter(AbuseIpdbChecker::getUpdateDelay)
+            Codec.LONG.optionalFieldOf("update_delay_seconds", DEFAULT_UPDATE_DELAY).forGetter(AbuseIpdbChecker::getUpdateDelay),
+            Codec.LONG.optionalFieldOf("report_cooldown_seconds", DEFAULT_REPORT_COOLDOWN).forGetter(AbuseIpdbChecker::getReportCooldown),
+            Codec.INT.optionalFieldOf("abuse_confidence_threshold", 90).forGetter(AbuseIpdbChecker::getAbuseConfidenceThreshold)
     ).apply(instance, AbuseIpdbChecker::new));
-    public static final int ABUSE_CONFIDENCE_THRESHOLD = 90;
+    public static final int DEFAULT_ABUSE_CONFIDENCE_THRESHOLD = 90;
     /**
      * Locks all fields other than {@link AbuseIpdbChecker#reportTimes}
      */
@@ -73,22 +75,99 @@ public class AbuseIpdbChecker implements ConnectionChecker {
      * Ip -> last time reported (UNIX epoch millis)
      */
     private final transient ConcurrentHashMap<String, Long> reportTimes;
+    /**
+     * Time between reporting the same ip, in seconds
+     */
+    private final long reportCooldown;
+    /**
+     * Minimum abuse confidence score to block an IP
+     */
+    private final int abuseConfidenceThreshold;
 
     public AbuseIpdbChecker() {
-        this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY);
-    }
-
-    public AbuseIpdbChecker(List<String> blacklist, long lastUpdated, long updateDelay) {
-        this(new HashSet<>(blacklist), lastUpdated, updateDelay);
+        this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY, DEFAULT_REPORT_COOLDOWN, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD);
     }
 
     public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay) {
+        this(blacklist, lastUpdated, updateDelay, DEFAULT_REPORT_COOLDOWN);
+    }
+
+    public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown) {
+        this(blacklist, lastUpdated, updateDelay, reportCooldown, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD);
+    }
+
+    public AbuseIpdbChecker(List<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown, int abuseConfidenceThreshold) {
+        this(new HashSet<>(blacklist), lastUpdated, updateDelay, reportCooldown, abuseConfidenceThreshold);
+    }
+
+    public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown, int abuseConfidenceThreshold) {
         this.blacklist = blacklist;
         key = loadKey();
         this.lastUpdated = lastUpdated;
         this.updateDelay = updateDelay;
         this.greylist = new HashSet<>();
         this.reportTimes = new ConcurrentHashMap<>();
+        this.reportCooldown = reportCooldown;
+        this.abuseConfidenceThreshold = abuseConfidenceThreshold;
+    }
+
+    /**
+     *
+     * @return {@code true} if the ip is considered abusive.
+     */
+    private boolean checkIpRemotely(String ip) {
+        lock.readLock().lock();
+        try {
+            if (key == null) return false;
+        } finally {
+            lock.readLock().unlock();
+        }
+        lock.writeLock().lock();
+        try {
+            if (key == null) return false;
+            DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
+                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
+                    .GET()
+                    .setHeader("Key", key)
+                    .setHeader("Accept", "application/json")
+                    .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
+                    .build(), HttpResponse.BodyHandlers.ofString());
+
+            if (request.isSuccess()) {
+                HttpResponse<String> response = request.getOrThrow();
+                JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
+                int abuseScore = json.get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt();
+                if (abuseScore > abuseConfidenceThreshold) {
+                    blacklist.add(ip);
+                    return true;
+                } else {
+                    greylist.add(ip);
+                    return false;
+                }
+            } else {
+                //? if >1.20.5 {
+                if (request.hasResultOrPartial()) {
+                    HttpResponse<String> response = request.getPartialOrThrow();
+                //? } else {
+                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
+                if (partial.isPresent()) {
+                    HttpResponse<String> response = partial.get();
+                *///? }
+                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
+                            response.statusCode(),
+                            response.body());
+                } else {
+                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
+                }
+                return false;
+            }
+        } finally {
+            lock.writeLock().unlock();
+        }
+    }
+
+    public int getAbuseConfidenceThreshold() {
+        return abuseConfidenceThreshold;
     }
 
     protected static @Nullable String loadKey() {
@@ -133,55 +212,8 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         return CompletableFuture.supplyAsync(() -> reportNow(connection), executor);
     }
 
-    /**
-     * @return {@code true} if reported successfully or on cooldown, {@code false} otherwise
-     */
-    public boolean reportNow(String ip) {
-        lock.readLock().lock();
-        try {
-            if (key == null) return false;
-            long time = System.currentTimeMillis();
-            AtomicBoolean shouldReport = new AtomicBoolean(false);
-            reportTimes.compute(ip, (ipKey, prevTime) -> {
-                if (prevTime == null || System.currentTimeMillis() + REPORT_COOLDOWN > prevTime) {
-                    shouldReport.set(true);
-                    return time;
-                }
-                return prevTime;
-            });
-            if (shouldReport.get()) {
-                Antiscan.LOGGER.info("Reporting {} to AbuseIpdb", ip);
-                DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                        .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
-                        .POST(HttpRequest.BodyPublishers.ofString(
-                                String.format("ip=%s&categories=%s&comment=%s",
-                                        URLEncoder.encode(ip, StandardCharsets.UTF_8),
-                                        URLEncoder.encode("14", StandardCharsets.UTF_8), // Category: port scanning
-                                        URLEncoder.encode("Port scan to Minecraft server.", StandardCharsets.UTF_8))))
-                        .setHeader("Key", key)
-                        .setHeader("Accept", "application/json")
-                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                        .build(), HttpResponse.BodyHandlers.ofString());
-
-                if (request.isSuccess()) return true;
-                //? if >1.20.5 {
-                if (request.hasResultOrPartial()) {
-                    HttpResponse<String> response = request.getPartialOrThrow();
-                //? } else {
-                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
-                if (partial.isPresent()) {
-                    HttpResponse<String> response = partial.get();
-                    *///? }
-                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", response.statusCode());
-                    return false;
-                }
-                Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB.");
-                return false;
-            }
-            return true;
-        } finally {
-            lock.readLock().unlock();
-        }
+    public long getReportCooldown() {
+        return reportCooldown;
     }
 
     public boolean reportNow(Connection connection) {
@@ -230,39 +262,36 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     }
 
     /**
-     *
-     * @return {@code true} if the ip is considered abusive.
+     * @return {@code true} if reported successfully or on cooldown, {@code false} otherwise
      */
-    private boolean checkIpRemotely(String ip) {
+    public boolean reportNow(String ip) {
         lock.readLock().lock();
         try {
             if (key == null) return false;
-        } finally {
-            lock.readLock().unlock();
-        }
-        lock.writeLock().lock();
-        try {
-            if (key == null) return false;
-            DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
-                    .GET()
-                    .setHeader("Key", key)
-                    .setHeader("Accept", "application/json")
-                    .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
-                    .build(), HttpResponse.BodyHandlers.ofString());
-
-            if (request.isSuccess()) {
-                HttpResponse<String> response = request.getOrThrow();
-                JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
-                int abuseScore = json.get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt();
-                if (abuseScore > ABUSE_CONFIDENCE_THRESHOLD) {
-                    blacklist.add(ip);
-                    return true;
-                } else {
-                    greylist.add(ip);
-                    return false;
+            long time = System.currentTimeMillis();
+            AtomicBoolean shouldReport = new AtomicBoolean(false);
+            reportTimes.compute(ip, (ipKey, prevTime) -> {
+                if (prevTime == null || System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(reportCooldown) > prevTime) {
+                    shouldReport.set(true);
+                    return time;
                 }
-            } else {
+                return prevTime;
+            });
+            if (shouldReport.get()) {
+                Antiscan.LOGGER.info("Reporting {} to AbuseIpdb", ip);
+                DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
+                        .POST(HttpRequest.BodyPublishers.ofString(
+                                String.format("ip=%s&categories=%s&comment=%s",
+                                        URLEncoder.encode(ip, StandardCharsets.UTF_8),
+                                        URLEncoder.encode("14", StandardCharsets.UTF_8), // Category: port scanning
+                                        URLEncoder.encode("Port scan to Minecraft server.", StandardCharsets.UTF_8))))
+                        .setHeader("Key", key)
+                        .setHeader("Accept", "application/json")
+                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                        .build(), HttpResponse.BodyHandlers.ofString());
+
+                if (request.isSuccess()) return true;
                 //? if >1.20.5 {
                 if (request.hasResultOrPartial()) {
                     HttpResponse<String> response = request.getPartialOrThrow();
@@ -270,17 +299,16 @@ public class AbuseIpdbChecker implements ConnectionChecker {
                 /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
                 if (partial.isPresent()) {
                     HttpResponse<String> response = partial.get();
-                *///? }
-                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
-                            response.statusCode(),
-                            response.body());
-                } else {
-                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
+                    *///? }
+                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", response.statusCode());
+                    return false;
                 }
+                Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB.");
                 return false;
             }
+            return true;
         } finally {
-            lock.writeLock().unlock();
+            lock.readLock().unlock();
         }
     }
 
