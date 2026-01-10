@@ -24,6 +24,7 @@ public enum VerificationStatus implements StringRepresentable {
         return name;
     }
 
+    @SuppressWarnings("unused")
     public boolean isPrioritizedOver(VerificationStatus other) {
         return priority > other.priority;
     }

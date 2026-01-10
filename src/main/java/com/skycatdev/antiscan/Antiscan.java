@@ -24,8 +24,8 @@ import java.util.concurrent.ExecutionException;
 public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
-    public static final String VERSION = /*$ mod_version*/ "2.0.0";
-    public static final String MINECRAFT = /*$ minecraft*/ "1.21.11";
+    @SuppressWarnings("unused") public static final String VERSION = /*$ mod_version*/ "2.0.0";
+    @SuppressWarnings("unused") public static final String MINECRAFT = /*$ minecraft*/ "1.21.11";
     public static final Config CONFIG = Config.load();
     /**
      * This checker runs first.
@@ -50,9 +50,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     public void onInitializeServer() {
         ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
-            CONFIG.trySave();
-        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> CONFIG.trySave());
     }
 
     /**

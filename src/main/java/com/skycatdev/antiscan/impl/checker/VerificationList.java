@@ -140,7 +140,7 @@ public class VerificationList implements ConnectionChecker {
         }
     }
 
-    public static record ListPart(List<String> part, int superSize) {
+    public record ListPart(List<String> part, int superSize) {
 
     }
 

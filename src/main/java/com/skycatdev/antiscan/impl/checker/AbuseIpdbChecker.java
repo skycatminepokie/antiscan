@@ -57,7 +57,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     /**
      * Locks all fields other than {@link AbuseIpdbChecker#reportTimes}
      */
-    protected ReadWriteLock lock = new ReentrantReadWriteLock(true); // Fairness seems important when connections are waiting
+    protected final ReadWriteLock lock = new ReentrantReadWriteLock(true); // Fairness seems important when connections are waiting
     protected @Nullable String key;
     /**
      * Minimum time between updates, in seconds.
@@ -67,12 +67,12 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     /**
      * IPs that were not reported as abusive on AbuseIPDB
      */
-    private transient HashSet<String> greylist;
-    private HashSet<String> blacklist;
+    private final transient HashSet<String> greylist;
+    private final HashSet<String> blacklist;
     /**
      * Ip -> last time reported (UNIX epoch millis)
      */
-    private transient ConcurrentHashMap<String, Long> reportTimes;
+    private final transient ConcurrentHashMap<String, Long> reportTimes;
 
     public AbuseIpdbChecker() {
         this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY);
@@ -128,6 +128,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         return CompletableFuture.supplyAsync(() -> reportNow(ip), executor);
     }
 
+    @SuppressWarnings("unused")
     public CompletableFuture<Boolean> report(Connection connection, Executor executor) {
         return CompletableFuture.supplyAsync(() -> reportNow(connection), executor);
     }

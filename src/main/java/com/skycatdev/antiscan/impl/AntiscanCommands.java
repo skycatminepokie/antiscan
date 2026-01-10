@@ -30,8 +30,8 @@ public class AntiscanCommands {
     public static final int PARTIAL_LIST_SIZE = 25;
 
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher,
-                                        CommandBuildContext context,
-                                        Commands.CommandSelection environment) {
+                                        CommandBuildContext ignoredContext,
+                                        Commands.CommandSelection ignoredEnvironment) {
         var antiscan = literal("antiscan")
                 .requires(Permissions.require("antiscan", PermissionLevel.ADMINS))
                 .build();
@@ -168,6 +168,7 @@ public class AntiscanCommands {
         //@formatter:on
     }
 
+    @SuppressWarnings("SameReturnValue")
     private static int reportIp(CommandContext<CommandSourceStack> context) {
         String ip = StringArgumentType.getString(context, "ip");
         context.getSource().sendSuccess(() -> Component.literal("Reporting " + ip + "..."), false);
