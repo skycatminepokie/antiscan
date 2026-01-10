@@ -11,6 +11,7 @@ import net.minecraft.commands.CommandBuildContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.network.chat.*;
+//? if >=1.21.11
 import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.util.CommonColors;
 
@@ -278,4 +279,14 @@ public class AntiscanCommands {
             return list.remove(target, EXECUTOR);
         }
     }
+
+    //? if <1.21.11 {
+    /*private static class PermissionLevel { // Hack for pre-1.21.11 so I don't have to change permission levels to integers
+        private static int ALL = 0;
+        private static int MODERATORS = 1;
+        private static int GAMEMASTERS = 2;
+        private static int OWNERS = 4;
+        private static int ADMINS = 3;
+    }
+    *///? }
 }
