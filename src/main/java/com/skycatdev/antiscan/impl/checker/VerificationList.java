@@ -16,7 +16,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
-import java.util.concurrent.Future;
 
 public class VerificationList implements ConnectionChecker {
     public static final MapCodec<VerificationList> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
@@ -48,7 +47,7 @@ public class VerificationList implements ConnectionChecker {
         this.isIpList = isIpList;
     }
 
-    public Future<Boolean> add(String str, Executor executor) {
+    public CompletableFuture<Boolean> add(String str, Executor executor) {
         return CompletableFuture.supplyAsync(() -> addBlocking(str), executor);
     }
 
@@ -92,6 +91,20 @@ public class VerificationList implements ConnectionChecker {
         }
     }
 
+    public CompletableFuture<ListPart> getPart(long size, Executor executor) {
+        return CompletableFuture.supplyAsync(() -> getPartNow(size), executor);
+    }
+
+    public ListPart getPartNow(long size) {
+        synchronized (list) {
+            var stream = list.stream();
+            if (size != -1) {
+                stream = stream.limit(size);
+            }
+            return new ListPart(stream.toList(), list.size());
+        }
+    }
+
     public void clear() {
         synchronized (list) {
             list.clear();
@@ -117,7 +130,7 @@ public class VerificationList implements ConnectionChecker {
         return isIpList;
     }
 
-    public Future<Boolean> remove(String str, Executor executor) {
+    public CompletableFuture<Boolean> remove(String str, Executor executor) {
         return CompletableFuture.supplyAsync(() -> removeBlocking(str), executor);
     }
 
@@ -125,6 +138,10 @@ public class VerificationList implements ConnectionChecker {
         synchronized (list) {
             return list.remove(str);
         }
+    }
+
+    public static record ListPart(List<String> part, int superSize) {
+
     }
 
 }

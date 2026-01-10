@@ -9,6 +9,7 @@ import com.skycatdev.antiscan.impl.checker.LocalChecker;
 import com.skycatdev.antiscan.impl.checker.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -49,6 +50,9 @@ public class Antiscan implements DedicatedServerModInitializer {
     public void onInitializeServer() {
         ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            CONFIG.trySave();
+        });
     }
 
     /**
