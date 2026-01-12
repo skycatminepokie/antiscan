@@ -10,6 +10,7 @@ stonecutter active "1.21.11"
 stonecutter tasks {
     order("publishModrinth")
     order("publishGithub")
+    order("announceDiscord") // TODO: Group this into one announcement
 }
 
 // See https://stonecutter.kikugie.dev/wiki/config/params

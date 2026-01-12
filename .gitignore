@@ -43,7 +43,6 @@ replay_*.log
 versions/*/logs
 
 # antiscan
-**/.antiscan-do-not-share
-**/antiscan-key-do-not-share
+**/antiscan-key-do-not-share.txt
 **/antiscan2.json
 **/.pid*

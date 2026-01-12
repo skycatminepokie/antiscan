@@ -10,6 +10,7 @@ import com.skycatdev.antiscan.impl.checker.MultiChecker;
 import net.fabricmc.api.DedicatedServerModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
@@ -72,7 +73,7 @@ public class Antiscan implements DedicatedServerModInitializer {
         ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> CONFIG.trySave());
-        // TODO: save config on server save
+        ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> CONFIG.trySave());
     }
 
     /**
