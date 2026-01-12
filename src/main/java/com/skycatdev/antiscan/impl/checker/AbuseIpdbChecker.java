@@ -271,7 +271,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
             long time = System.currentTimeMillis();
             AtomicBoolean shouldReport = new AtomicBoolean(false);
             reportTimes.compute(ip, (ipKey, prevTime) -> {
-                if (prevTime == null || System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(reportCooldown) > prevTime) {
+                if (prevTime == null || System.currentTimeMillis() > prevTime + TimeUnit.SECONDS.toMillis(reportCooldown)) {
                     shouldReport.set(true);
                     return time;
                 }
@@ -351,7 +351,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
     protected boolean updateIfNeeded() {
         lock.readLock().lock();
         try {
-            if (key == null || System.currentTimeMillis() < lastUpdated + updateDelay * 100) {
+            if (key == null || System.currentTimeMillis() < lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
                 return true;
             }
         } finally {
@@ -361,7 +361,7 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         lock.writeLock().lock();
         try {
             // May have changed since promoting lock
-            if (key == null || System.currentTimeMillis() < lastUpdated + updateDelay * 100) {
+            if (key == null || System.currentTimeMillis() < lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
                 return true;
             }
             greylist.clear();
