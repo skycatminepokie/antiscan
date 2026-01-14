@@ -192,7 +192,7 @@ publishMods {
         username = "Mod Updates"
         avatarUrl = "https://cataas.com/cat?type=square"
         webhookUrl = providers.environmentVariable("DISCORD_WEBHOOK")
-        content = "# A new version of Antiscan is out!\n${changelog.get()}"
+        content = "# ${displayName}\n${changelog.get()}"
     }
 
 }
