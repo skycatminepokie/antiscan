@@ -96,7 +96,7 @@ tasks {
         inputs.property("id", project.property("mod.id"))
         inputs.property("test_id", project.property("mod.test_id"))
         inputs.property("name", project.property("mod.name"))
-        inputs.property("version", "${project.property("mod.version")}+${stonecutter.current.version}")
+        inputs.property("version", "${project.property("mod.version")}+${project.property("mod.mc_title")}")
         inputs.property("minecraft", project.property("mod.mc_dep"))
         inputs.property("fabric_loader", project.property("deps.fabric_loader"))
         inputs.property("java", requiredJava)
@@ -120,7 +120,7 @@ tasks {
             "id" to project.property("mod.id"),
             "test_id" to project.property("mod.test_id"),
             "name" to project.property("mod.id"),
-            "version" to "${project.property("mod.version")}+${stonecutter.current.version}",
+            "version" to "${project.property("mod.version")}+${project.property("mod.mc_title")}",
             "minecraft" to project.property("mod.mc_dep"),
             "fabric_loader" to project.property("deps.fabric_loader"),
             "java" to javaAndInjected
@@ -162,7 +162,7 @@ publishMods {
     file = tasks.remapJar.map { it.archiveFile.get() }
     additionalFiles.from(tasks.remapSourcesJar.map { it.archiveFile.get() })
     displayName = "${property("mod.name")} ${property("mod.version")} for ${property("mod.mc_title")}"
-    version = property("mod.version") as String
+    version = "${property("mod.version")}+${property("mod.mc_title")}"
     changelog = rootProject.file("CHANGELOG.md").readText()
     type = STABLE
     modLoaders.add("fabric")
