@@ -7,13 +7,14 @@ import net.fabricmc.fabric.api.gametest.v1.CustomTestMethodInvoker;
 import net.minecraft.gametest.framework.GameTest;
 *///?}
 import net.minecraft.gametest.framework.GameTestHelper;
+import org.spongepowered.asm.mixin.MixinEnvironment;
 
 import java.lang.reflect.Method;
 //? if fapi: >= 0.118.4 {
 public class AntiscanGametest implements CustomTestMethodInvoker {
     @Override
     public void invokeTestMethod(GameTestHelper gameTestHelper, Method method) {
-
+        MixinEnvironment.getCurrentEnvironment().audit();
     }
 //?} else {
     /*public class AntiscanGametest implements FabricGameTest {
