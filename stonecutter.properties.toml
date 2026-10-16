@@ -79,3 +79,12 @@ mod.mc_target = ["26.2"]
 
 deps.fabric_api = "0.154.0+26.2"
 deps.permissions_api = "0.7.0"
+
+["26.3"]
+mod.mc_dep = "~26.3"
+mod.mc_title = "26.3.x"
+mod.mc_releases = ["26.3"]
+
+deps.fabric_api = "0.160.7+26.3"
+deps.permissions_api = "0.7.0"
+

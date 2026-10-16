@@ -28,7 +28,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
     public static final Logger LOGGER = LoggerFactory.getLogger(MOD_ID);
     @SuppressWarnings("unused") public static final String VERSION = /*$ mod_version*/ "2.0.0";
-    @SuppressWarnings("unused") public static final String MINECRAFT = /*$ minecraft*/ "26.2";
+    @SuppressWarnings("unused") public static final String MINECRAFT = /*$ minecraft*/ "26.3";
     public static final Path SAVE_DIRECTORY = FabricLoader.getInstance().getGameDir().resolve("antiscan");
     public static final Config CONFIG = Config.load();
     /**
