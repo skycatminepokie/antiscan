@@ -26,15 +26,24 @@ class ConfigTest {
         assertThat(config.nameBlacklist().getPartNow(-1).part()).containsExactly("blocked");
         assertThat(config.abuseIpdbChecker().getReportCooldown()).isEqualTo(789);
         assertThat(config.abuseIpdbChecker().getAbuseConfidenceThreshold()).isEqualTo(95);
+        assertThat(config.protection()).isEqualTo(Config.Protection.DEFAULT);
         assertThat(config.abuseIpdbChecker().isAutoReport()).isFalse();
         var saved = Config.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow().getAsJsonObject();
         assertThat(saved.getAsJsonObject("hunter").get("update_delay_sec").getAsInt()).isEqualTo(123);
     }
 
-    @Test void autoReportOptionRoundTrips() {
-        var config = parse("{\"blacklist\":[],\"auto_report\":true}", "");
+    @Test void protectionAndAutoReportOptionsRoundTrip() {
+        var config = parse("{\"blacklist\":[],\"auto_report\":true}",
+                ",\"protection\":{\"rate_limits_enabled\":false,\"max_logins_per_minute\":5,\"network_feeds_enabled\":false}");
         assertThat(config.abuseIpdbChecker().isAutoReport()).isTrue();
+        assertThat(config.protection()).isEqualTo(new Config.Protection(false, 240, 180, 5, false));
         var saved = Config.CODEC.encodeStart(JsonOps.INSTANCE, config).getOrThrow().getAsJsonObject();
+        assertThat(saved.getAsJsonObject("protection").get("max_logins_per_minute").getAsInt()).isEqualTo(5);
         assertThat(saved.getAsJsonObject("abuse_ipdb").get("auto_report").getAsBoolean()).isTrue();
+    }
+
+    @Test void nonsensicalLimitsAreRejected() {
+        var protection = JsonParser.parseString("{\"max_connections_per_minute\":0}");
+        assertThat(Config.Protection.CODEC.parse(JsonOps.INSTANCE, protection).result()).isEmpty();
     }
 }

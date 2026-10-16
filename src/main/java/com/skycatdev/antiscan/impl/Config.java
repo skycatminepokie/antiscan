@@ -19,8 +19,25 @@ public record Config(
         VerificationList nameWhitelist,
         VerificationList nameBlacklist,
         HunterChecker hunterChecker,
-        AbuseIpdbChecker abuseIpdbChecker
+        AbuseIpdbChecker abuseIpdbChecker,
+        Protection protection
 ) {
+    /**
+     * Optional blocking features that go beyond the lists. Every field has a default, so older config files still load.
+     * Players behind one shared address (CGNAT, a proxy) can turn the rate limits off or raise them.
+     */
+    public record Protection(boolean rateLimits, int maxConnectionsPerMinute, int maxStatusPerMinute,
+                             int maxLoginsPerMinute, boolean networkFeeds) {
+        public static final Protection DEFAULT = new Protection(true, 240, 180, 60, true);
+        public static final Codec<Protection> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+                Codec.BOOL.optionalFieldOf("rate_limits_enabled", DEFAULT.rateLimits).forGetter(Protection::rateLimits),
+                Codec.intRange(1, 1_000_000).optionalFieldOf("max_connections_per_minute", DEFAULT.maxConnectionsPerMinute).forGetter(Protection::maxConnectionsPerMinute),
+                Codec.intRange(1, 1_000_000).optionalFieldOf("max_status_per_minute", DEFAULT.maxStatusPerMinute).forGetter(Protection::maxStatusPerMinute),
+                Codec.intRange(1, 1_000_000).optionalFieldOf("max_logins_per_minute", DEFAULT.maxLoginsPerMinute).forGetter(Protection::maxLoginsPerMinute),
+                Codec.BOOL.optionalFieldOf("network_feeds_enabled", DEFAULT.networkFeeds).forGetter(Protection::networkFeeds)
+        ).apply(instance, Protection::new));
+    }
+
     public static final String DEFAULT_COMMENT = "Hey! Be careful sharing this! It's full of IPs, which may include yours or your friends'.";
     public static final int CONFIG_VERSION = 2;
     // Built from the game dir rather than Antiscan.SAVE_DIRECTORY, since the Antiscan static initializer loads this config.
@@ -33,7 +50,8 @@ public record Config(
             VerificationList.CODEC.codec().fieldOf("name_whitelist").forGetter(Config::nameWhitelist),
             VerificationList.CODEC.codec().fieldOf("name_blacklist").forGetter(Config::nameBlacklist),
             HunterChecker.CODEC.codec().fieldOf("hunter").forGetter(Config::hunterChecker),
-            AbuseIpdbChecker.CODEC.codec().fieldOf("abuse_ipdb").forGetter(Config::abuseIpdbChecker)
+            AbuseIpdbChecker.CODEC.codec().fieldOf("abuse_ipdb").forGetter(Config::abuseIpdbChecker),
+            Protection.CODEC.optionalFieldOf("protection", Protection.DEFAULT).forGetter(Config::protection)
     ).apply(instance, Config::new));
 
     private static Config defaultConfig() {
@@ -45,7 +63,8 @@ public record Config(
                 new VerificationList(VerificationStatus.SUCCEED, false),
                 new VerificationList(VerificationStatus.FAIL_REPORT, false),
                 new HunterChecker(),
-                new AbuseIpdbChecker()
+                new AbuseIpdbChecker(),
+                Protection.DEFAULT
         );
     }
 

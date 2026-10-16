@@ -136,6 +136,27 @@ public class AntiscanCommands {
                 .executes(AntiscanCommands::reportIp)
                 .build();
 
+        antiscan.addChild(literal("tempban")
+                .requires(Permissions.require("antiscan.tempban", PermissionLevel.ADMINS))
+                .then(literal("list").executes(context -> {
+                    var entries = Antiscan.RATES.list(System.currentTimeMillis());
+                    StringBuilder text = new StringBuilder("Temporary bans: " + entries.size());
+                    entries.entrySet().stream().limit(PARTIAL_LIST_SIZE).forEach(entry -> text.append("\n")
+                            .append(entry.getKey()).append(" until ").append(java.time.Instant.ofEpochMilli(entry.getValue().expires()))
+                            .append(" (").append(entry.getValue().reason()).append(")"));
+                    context.getSource().sendSuccess(() -> Component.literal(text.toString()), false);
+                    return 1;
+                }))
+                .then(literal("unban").then(argument("ip", StringArgumentType.greedyString()).executes(context -> {
+                    String ip;
+                    try { ip = com.google.common.net.InetAddresses.forString(StringArgumentType.getString(context, "ip")).getHostAddress(); }
+                    catch (IllegalArgumentException e) { context.getSource().sendFailure(Component.literal("Expected a literal IP address.")); return 0; }
+                    boolean removed = Antiscan.RATES.unban(ip);
+                    BackgroundTasks.submit("save-bans", Antiscan.RATES::save);
+                    context.getSource().sendSuccess(() -> Component.literal(removed ? "Temporary ban removed." : "No temporary ban for that IP."), false);
+                    return removed ? 1 : 0;
+                }))).build());
+
         //@formatter:off
         dispatcher.getRoot().addChild(antiscan);
         antiscan.addChild(blacklist);

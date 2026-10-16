@@ -20,7 +20,7 @@ public abstract class HandshakeMixin {
     //? if >=1.20.5 {
     @WrapMethod(method = "beginLogin")
     private void antiscan$handleBaddies(ClientIntentionPacket packet, boolean transfer, Operation<Void> original) {
-        Antiscan.handleConnection(connection, null, () -> original.call(packet, transfer));
+        Antiscan.handleConnection(connection, null, () -> original.call(packet, transfer), com.skycatdev.antiscan.impl.ConnectionRates.Kind.LOGIN);
     }
     //?}
     //? if <1.20.5 {

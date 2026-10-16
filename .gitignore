@@ -47,4 +47,6 @@ versions/*/logs
 **/antiscan2.json
 **/antiscan2.json.tmp
 **/antiscan/abuse-budget.json*
+**/antiscan/temporary-bans.json*
+**/antiscan/feeds/*.json*
 **/.pid*

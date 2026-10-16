@@ -3,7 +3,7 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "Block port scanners using Hunter and AbuseIPDB.",
+  "description": "Block port scanners using AbuseIPDB, Hunter and Spamhaus DROP, plus per-IP rate limits.",
   "authors": [
     "skycatminepokie"
   ],

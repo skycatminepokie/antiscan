@@ -24,6 +24,6 @@ public abstract class StatusMixin {
 
     @WrapMethod(method = "handleStatusRequest")
     private void antiscan$handleBaddiesQuery(ServerboundStatusRequestPacket packet, Operation<Void> original) {
-        Antiscan.handleConnection(connection, null, () -> original.call(packet));
+        Antiscan.handleConnection(connection, null, () -> original.call(packet), com.skycatdev.antiscan.impl.ConnectionRates.Kind.STATUS);
     }
 }
