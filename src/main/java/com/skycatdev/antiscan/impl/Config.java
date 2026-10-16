@@ -23,7 +23,8 @@ public record Config(
 ) {
     public static final String DEFAULT_COMMENT = "Hey! Be careful sharing this! It's full of IPs, which may include yours or your friends'.";
     public static final int CONFIG_VERSION = 2;
-    public static final File CONFIG_FILE = Antiscan.SAVE_DIRECTORY.resolve("antiscan2.json").toFile();
+    // Built from the game dir rather than Antiscan.SAVE_DIRECTORY, since the Antiscan static initializer loads this config.
+    public static final File CONFIG_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("antiscan/antiscan2.json").toFile();
     public static final Codec<Config> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.STRING.fieldOf("_read_this").forGetter((ignored) -> DEFAULT_COMMENT),
             Codec.INT.fieldOf("config_version_dont_touch").forGetter((ignored) -> CONFIG_VERSION),

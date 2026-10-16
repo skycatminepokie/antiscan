@@ -1,178 +1,167 @@
 package com.skycatdev.antiscan.impl.checker;
 
 import com.mojang.serialization.DataResult;
-import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.VerificationStatus;
 import com.skycatdev.antiscan.impl.Utils;
+import com.skycatdev.antiscan.impl.BackgroundTasks;
 import com.skycatdev.antiscan.test.TestUtil;
-import net.minecraft.network.Connection;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
-import org.mockito.stubbing.Answer;
-
 import java.net.http.HttpResponse;
-import java.time.Duration;
-import java.util.HashSet;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import java.net.http.HttpHeaders;
+import java.nio.file.Path;
+import java.util.*;
+import java.util.concurrent.*;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class AbuseIpdbCheckerTest {
-    TestUtil testUtil = new TestUtil();
-
-    @Test
-    void updatesOnFirstCall() {
+    @TempDir Path temp;
+    TestUtil util = new TestUtil();
+    AbuseIpdbChecker checker() {
         AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn("fakekey");
+        try (var keys = mockStatic(AbuseIpdbChecker.class)) {
+            keys.when(AbuseIpdbChecker::loadKey).thenReturn("fake-key");
             checker = new AbuseIpdbChecker();
         }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
+        checker.useLedger(temp.resolve("budget.json"));
+        return checker;
+    }
+    HttpResponse<String> response(String body) { HttpResponse<String> response = mock(); when(response.body()).thenReturn(body); return response; }
+    MockedStatic<Utils> http() { return mockStatic(Utils.class, CALLS_REAL_METHODS); }
 
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.success(response));
-
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()), times(1)); // once for blacklist
+    @Test void firstUnknownAllowedThenCachedBadBlocksWithoutReporting() {
+        var checker = checker(); var connection = util.mockConnection("192.0.2.1");
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("{\"data\":{\"abuseConfidenceScore\":100}}")));
+            assertThat(checker.check(connection, null, Runnable::run).join()).isEqualTo(VerificationStatus.PASS);
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), never());
+            checker.lookupNow("192.0.2.1");
+            assertThat(checker.check(connection, null, Runnable::run).join()).isEqualTo(VerificationStatus.FAIL);
+            http.verify(() -> Utils.sendHttpRequest(argThat(r -> r.method().equals("POST")), any()), never());
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(1));
         }
     }
-
-    @Test
-    void usesGreylist() {
-        AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn("fakekey");
-            checker = new AbuseIpdbChecker();
-        }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response1 = mock();
-        when(response1.body()).thenReturn("nonsense");
-        HttpResponse<String> response2 = mock();
-        when(response2.body()).thenReturn("{\"data\":{\"abuseConfidenceScore\":100}}");
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any()))
-                    .thenReturn(DataResult.success(response1))
-                    .thenReturn(DataResult.success(response2));
-
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofMillis(0))
-                    .isEqualTo(VerificationStatus.FAIL);
-            // one blacklist, one check (which is reported abusive)
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()), times(2));
+    @Test void cleanResultCachedAndHasTtl() throws Exception {
+        var checker = checker();
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("{\"data\":{\"abuseConfidenceScore\":0}}")));
+            checker.lookupNow("192.0.2.1");
+            assertThat(checker.check(util.mockConnection("192.0.2.1"), null, Runnable::run).join()).isEqualTo(VerificationStatus.PASS);
+            var field = AbuseIpdbChecker.class.getDeclaredField("cache"); field.setAccessible(true);
+            Object cached = ((Map<?, ?>)field.get(checker)).get("192.0.2.1");
+            var expires = cached.getClass().getDeclaredMethod("expires"); expires.setAccessible(true);
+            assertThat((Long)expires.invoke(cached)).isBetween(System.currentTimeMillis(), System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1));
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(1));
         }
     }
-
-    @Test
-    void blacklistUpdates() {
-        AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn("fakekey");
-            checker = new AbuseIpdbChecker(new HashSet<>(), 0, -1);
+    @Test void errorsAndMalformedAreNotCachedClean() throws Exception {
+        var checker = checker();
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "offline"));
+            checker.lookupNow("192.0.2.1");
+            var cache = AbuseIpdbChecker.class.getDeclaredField("cache"); cache.setAccessible(true);
+            assertThat((Map<?, ?>)cache.get(checker)).isEmpty();
         }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any()))
-                    .thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
-                        HttpResponse<String> response1 = mock();
-                        when(response1.body()).thenReturn(ip);
-                        return DataResult.success(response1);
-                    })
-                    .thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
-                        HttpResponse<String> response2 = mock();
-                        when(response2.body()).thenReturn("nonsense");
-                        return DataResult.success(response2);
-                    }).thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
-                        HttpResponse<String> response3 = mock();
-                        when(response3.body()).thenReturn("{\"data\":{\"abuseConfidenceScore\":0}}");
-                        return DataResult.success(response3);
-                    });
-
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofMillis(0))
-                    .isEqualTo(VerificationStatus.FAIL);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // 1 request sent (blacklist update)
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofMillis(0))
-                    .isEqualTo(VerificationStatus.PASS);
-            // 3 requests sent (previous blacklist update, this blacklist update, ip check)
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()), times(3));
+        var other = checker(); other.useLedger(temp.resolve("other.json"));
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("nonsense")));
+            other.lookupNow("192.0.2.2");
+            var cache = AbuseIpdbChecker.class.getDeclaredField("cache"); cache.setAccessible(true);
+            assertThat((Map<?, ?>)cache.get(other)).isEmpty();
         }
     }
-
-    @Test
-    void usesCooldown() {
-        AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn("fakekey");
-            checker = new AbuseIpdbChecker();
+    @Test void refreshPreservesLastGoodOnMalformedAndHttpFailure() {
+        var checker = checker();
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("192.0.2.1")));
+            assertThat(checker.updateIfNeeded()).isTrue();
+            assertThat(checker.check(util.mockConnection("192.0.2.1"), null, Runnable::run).join()).isEqualTo(VerificationStatus.FAIL);
         }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
-                Antiscan.LOGGER.info("Sent http request");
-                return DataResult.success(response);
-            });
-
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // 1 request sent
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // Still only 1 request sent
+        // A persisted last-good list remains usable after restart even if refresh fails.
+        AbuseIpdbChecker restored;
+        try (var keys = mockStatic(AbuseIpdbChecker.class)) {
+            keys.when(AbuseIpdbChecker::loadKey).thenReturn("fake-key");
+            restored = new AbuseIpdbChecker(new HashSet<>(List.of("192.0.2.1")), System.currentTimeMillis() - 100_000, 0);
+        }
+        restored.useLedger(temp.resolve("budget.json"));
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("not-an-ip")));
+            assertThat(restored.updateIfNeeded()).isFalse();
+            assertThat(restored.check(util.mockConnection("192.0.2.1"), null, Runnable::run).join()).isEqualTo(VerificationStatus.FAIL);
         }
     }
-
-    @Test
-    void noKeyBehavior() { // Fail open, no requests sent
-        AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn(null);
-            checker = new AbuseIpdbChecker();
-        }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenThrow(new AssertionError("No requests should be sent, but one was!"));
-
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofMillis(0))
-                    .isEqualTo(VerificationStatus.PASS);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()), never());
+    @Test void reportCooldownAndBudgetSurviveRestart() {
+        var checker = checker();
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation -> DataResult.success(response("{}")));
+            assertThat(checker.reportNow("192.0.2.1")).isTrue();
+            assertThat(checker().reportNow("192.0.2.1")).isFalse();
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(1));
         }
     }
-
-    @Test
-    void failOpenWhenHttpError() {
-        AbuseIpdbChecker checker;
-        try (MockedStatic<AbuseIpdbChecker> mockedChecker = mockStatic(AbuseIpdbChecker.class)) {
-            mockedChecker.when(AbuseIpdbChecker::loadKey).thenReturn("fakekey");
-            checker = new AbuseIpdbChecker();
+    @Test void quotaAnd429BackoffPersist() {
+        var checker = checker(); var response = response("{}");
+        when(response.statusCode()).thenReturn(429);
+        when(response.headers()).thenReturn(HttpHeaders.of(Map.of("Retry-After", List.of("7200")), (a,b) -> true));
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "quota", response));
+            checker.lookupNow("192.0.2.1");
+            checker().lookupNow("192.0.2.2");
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(1));
         }
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "Forced error"));
-
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofMillis(0))
-                    .isEqualTo(VerificationStatus.PASS);
-            // 1 request for blacklist, 1 for check
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()), times(2));
+    }
+    @Test void noKeySendsNothing() {
+        var checker = checker(); checker.key = null;
+        try (var http = http()) {
+            checker.lookupNow("192.0.2.1");
+            assertThat(checker.reportNow("192.0.2.1")).isFalse();
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), never());
         }
+    }
+    @Test void blacklistDailyBudgetSurvivesRestartWithoutExhaustingLookups() {
+        try (var http = http()) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer(invocation ->
+                    DataResult.success(response("192.0.2.1")));
+            for (int i = 0; i < 5; i++) assertThat(checker().updateIfNeeded()).isTrue();
+            assertThat(checker().updateIfNeeded()).isFalse();
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(5));
+            checker().lookupNow("192.0.2.2");
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(6));
+        }
+    }
+    @Test void failReportsAreOnlySentWhenAutoReportIsOn() throws Exception {
+        var reported = new CopyOnWriteArrayList<String>();
+        var latch = new CountDownLatch(1);
+        class Recording extends AbuseIpdbChecker {
+            Recording(boolean auto) { super(new HashSet<String>(), 0, 0, 0, 90, auto); }
+            @Override public boolean reportNow(String ip) { reported.add(ip); latch.countDown(); return true; }
+        }
+        BackgroundTasks.start(() -> {});
+        try {
+            new Recording(false).onFailReport("192.0.2.1");
+            Thread.sleep(200);
+            assertThat(reported).isEmpty();
+            new Recording(true).onFailReport("192.0.2.2");
+            assertThat(latch.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(reported).containsExactly("192.0.2.2");
+        } finally { BackgroundTasks.stop(); }
+    }
+    @Test void admissionReturnsWhileLookupIsBlocked() throws Exception {
+        CountDownLatch entered = new CountDownLatch(1), release = new CountDownLatch(1);
+        var checker = new AbuseIpdbChecker() {
+            @Override protected void lookupNow(String ip) {
+                entered.countDown();
+                try { release.await(); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+            }
+        };
+        checker.key = "fake-key";
+        BackgroundTasks.start(() -> {});
+        try {
+            assertThat(checker.check(util.mockConnection("192.0.2.1"), null, Runnable::run).join()).isEqualTo(VerificationStatus.PASS);
+            assertThat(entered.await(2, TimeUnit.SECONDS)).isTrue();
+            assertThat(checker.check(util.mockConnection("192.0.2.2"), null, Runnable::run).isDone()).isTrue();
+        } finally { release.countDown(); BackgroundTasks.stop(); }
     }
 }

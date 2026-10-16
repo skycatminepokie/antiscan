@@ -1,72 +1,52 @@
 package com.skycatdev.antiscan.impl.checker;
 
 import com.mojang.serialization.DataResult;
-import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.FeedLimits;
 import com.skycatdev.antiscan.impl.Utils;
 import com.skycatdev.antiscan.test.TestUtil;
-import net.minecraft.network.Connection;
 import org.junit.jupiter.api.Test;
-import org.mockito.MockedStatic;
-import org.mockito.stubbing.Answer;
-
 import java.net.http.HttpResponse;
-import java.time.Duration;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import java.util.List;
+import static org.assertj.core.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 class HunterCheckerTest {
-    TestUtil testUtil = new TestUtil();
-
-    @Test
-    void updatesOnFirstCall() {
+    TestUtil util = new TestUtil();
+    @Test void admissionNeverRefreshesEvenWithDirectExecutor() {
         HunterChecker checker = new HunterChecker();
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.success(response));
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()));
+        try (var http = mockStatic(Utils.class)) {
+            assertThat(checker.check(util.mockConnection(), null, Runnable::run).join()).isEqualTo(VerificationStatus.PASS);
+            http.verifyNoInteractions();
         }
     }
-
-    @Test
-    void failOpen() {
+    @Test void refreshAndCooldown() {
         HunterChecker checker = new HunterChecker();
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "Forced error."));
-            assertThat(checker.check(connection, null, Runnable::run))
-                    .succeedsWithin(Duration.ofNanos(0))
-                    .isEqualTo(VerificationStatus.PASS);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any()));
+        String ip = util.newIp();
+        HttpResponse<String> response = mock(); when(response.body()).thenReturn(ip);
+        try (var http = mockStatic(Utils.class)) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.success(response));
+            assertThat(checker.updateIfNeeded()).isTrue();
+            assertThat(checker.check(util.mockConnection(ip), null, Runnable::run).join()).isEqualTo(VerificationStatus.FAIL);
+            checker.updateIfNeeded();
+            http.verify(() -> Utils.sendHttpRequest(any(), any()), times(1));
         }
     }
-
-    @Test
-    void usesCooldown() {
-        HunterChecker checker = new HunterChecker();
-        String ip = testUtil.newIp();
-        Connection connection = testUtil.mockConnection(ip);
-        HttpResponse<String> response = mock();
-        when(response.body()).thenReturn(ip);
-
-        try (MockedStatic<Utils> mockedUtils = mockStatic(Utils.class)) {
-            mockedUtils.when(() -> Utils.sendHttpRequest(any(), any())).thenAnswer((Answer<DataResult<HttpResponse<String>>>) invocation -> {
-                Antiscan.LOGGER.info("Sent http request");
-                return DataResult.success(response);
-            });
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // 1 request sent
-            checker.check(connection, null, Runnable::run);
-            mockedUtils.verify(() -> Utils.sendHttpRequest(any(), any())); // Still only 1 request sent
+    @Test void failuresAndMalformedUpdatesRetainLastGood() {
+        String ip = util.newIp();
+        HunterChecker checker = new HunterChecker(List.of(ip), System.currentTimeMillis(), 0);
+        HttpResponse<String> response = mock(); when(response.body()).thenReturn("<html>unavailable</html>");
+        try (var http = mockStatic(Utils.class)) {
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.error(() -> "offline"));
+            assertThat(checker.updateNow()).isFalse();
+            http.when(() -> Utils.sendHttpRequest(any(), any())).thenReturn(DataResult.success(response));
+            assertThat(checker.updateNow()).isFalse();
+            assertThat(checker.check(util.mockConnection(ip), null, Runnable::run).join()).isEqualTo(VerificationStatus.FAIL);
         }
     }
-
+    @Test void staleFeedExpires() {
+        String ip = util.newIp();
+        HunterChecker checker = new HunterChecker(List.of(ip), System.currentTimeMillis() - FeedLimits.MAX_FEED_AGE, 0);
+        assertThat(checker.check(util.mockConnection(ip), null, Runnable::run).join()).isEqualTo(VerificationStatus.PASS);
+    }
 }

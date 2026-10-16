@@ -1,173 +1,72 @@
 package com.skycatdev.antiscan.impl.checker;
 
+import com.google.common.net.InetAddresses;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.Antiscan;
-import com.skycatdev.antiscan.api.ConnectionChecker;
-import com.skycatdev.antiscan.api.ConnectionCheckerType;
-import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.api.*;
+import com.skycatdev.antiscan.impl.BackgroundTasks;
+import com.skycatdev.antiscan.impl.FeedLimits;
 import com.skycatdev.antiscan.impl.Utils;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.network.Connection;
 import org.jspecify.annotations.Nullable;
-
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.io.*;
+import java.net.*;
+import java.net.http.*;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.*;
 import java.time.Duration;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.*;
 
 public class AbuseIpdbChecker implements ConnectionChecker {
-    public static final File KEY_FILE = Antiscan.SAVE_DIRECTORY.resolve("antiscan-key-do-not-share.txt").toFile();
-    /**
-     * Seconds
-     */
+    public static final File KEY_FILE = net.fabricmc.loader.api.FabricLoader.getInstance().getGameDir().resolve("antiscan/antiscan-key-do-not-share.txt").toFile();
     public static final long DEFAULT_UPDATE_DELAY = TimeUnit.HOURS.toSeconds(6);
-    /**
-     * UNIX epoch millis
-     */
     public static final long DEFAULT_LAST_UPDATED = 0L;
-    /**
-     * Seconds
-     */
     public static final long DEFAULT_REPORT_COOLDOWN = TimeUnit.HOURS.toSeconds(24);
     public static final MapCodec<AbuseIpdbChecker> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
             Codec.STRING.listOf().fieldOf("blacklist").forGetter(AbuseIpdbChecker::exportBlacklist),
             Codec.LONG.optionalFieldOf("last_updated", DEFAULT_LAST_UPDATED).forGetter(AbuseIpdbChecker::getLastUpdated),
             Codec.LONG.optionalFieldOf("update_delay_seconds", DEFAULT_UPDATE_DELAY).forGetter(AbuseIpdbChecker::getUpdateDelay),
             Codec.LONG.optionalFieldOf("report_cooldown_seconds", DEFAULT_REPORT_COOLDOWN).forGetter(AbuseIpdbChecker::getReportCooldown),
-            Codec.INT.optionalFieldOf("abuse_confidence_threshold", 90).forGetter(AbuseIpdbChecker::getAbuseConfidenceThreshold)
+            Codec.INT.optionalFieldOf("abuse_confidence_threshold", 90).forGetter(AbuseIpdbChecker::getAbuseConfidenceThreshold),
+            Codec.BOOL.optionalFieldOf("auto_report", false).forGetter(AbuseIpdbChecker::isAutoReport)
     ).apply(instance, AbuseIpdbChecker::new));
     public static final int DEFAULT_ABUSE_CONFIDENCE_THRESHOLD = 90;
-    /**
-     * Locks all fields other than {@link AbuseIpdbChecker#reportTimes}
-     */
-    protected final ReadWriteLock lock = new ReentrantReadWriteLock(true); // Fairness seems important when connections are waiting
     protected @Nullable String key;
-    /**
-     * Minimum time between updates, in seconds.
-     */
-    private long updateDelay;
-    private long lastUpdated;
-    /**
-     * IPs that were not reported as abusive on AbuseIPDB
-     */
-    private final transient HashSet<String> greylist;
-    private final HashSet<String> blacklist;
-    /**
-     * Ip -> last time reported (UNIX epoch millis)
-     */
-    private final transient ConcurrentHashMap<String, Long> reportTimes; // TODO: save this
-    /**
-     * Time between reporting the same ip, in seconds
-     */
-    private final long reportCooldown;
-    /**
-     * Minimum abuse confidence score to block an IP
-     */
+    private final long updateDelay, reportCooldown;
     private final int abuseConfidenceThreshold;
+    /** Report fail_report matches to AbuseIPDB automatically. Off by default; /antiscan report always works. */
+    private final boolean autoReport;
+    private long lastFailureLog;
+    private volatile long lastUpdated;
+    private volatile Set<String> blacklist;
+    private record Cached(boolean abusive, long expires) { }
+    private final Map<String, Cached> cache = new ConcurrentHashMap<>();
+    private final Map<String, Long> retryAfter = new ConcurrentHashMap<>();
+    private final Map<String, Long> reportTimes = new HashMap<>();
+    private long day, requests, reports, blacklistRequests, blockedUntil, nextRefresh;
+    private Path ledger = KEY_FILE.toPath().resolveSibling("abuse-budget.json");
+    private boolean ledgerLoaded, ledgerValid = true;
+    private static final int CACHE_LIMIT = 8192, DAILY_CHECKS = 900, DAILY_REPORTS = 100;
 
-    public AbuseIpdbChecker() {
-        this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY, DEFAULT_REPORT_COOLDOWN, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD);
-    }
-
-    public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay) {
-        this(blacklist, lastUpdated, updateDelay, DEFAULT_REPORT_COOLDOWN);
-    }
-
-    public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown) {
-        this(blacklist, lastUpdated, updateDelay, reportCooldown, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD);
-    }
-
-    public AbuseIpdbChecker(List<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown, int abuseConfidenceThreshold) {
-        this(new HashSet<>(blacklist), lastUpdated, updateDelay, reportCooldown, abuseConfidenceThreshold);
-    }
-
-    public AbuseIpdbChecker(HashSet<String> blacklist, long lastUpdated, long updateDelay, long reportCooldown, int abuseConfidenceThreshold) {
-        this.blacklist = blacklist;
+    public AbuseIpdbChecker() { this(new HashSet<>(), 0, DEFAULT_UPDATE_DELAY, DEFAULT_REPORT_COOLDOWN, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD); }
+    public AbuseIpdbChecker(HashSet<String> list, long updated, long delay) { this(list, updated, delay, DEFAULT_REPORT_COOLDOWN); }
+    public AbuseIpdbChecker(HashSet<String> list, long updated, long delay, long cooldown) { this(list, updated, delay, cooldown, DEFAULT_ABUSE_CONFIDENCE_THRESHOLD); }
+    public AbuseIpdbChecker(List<String> list, long updated, long delay, long cooldown, int threshold) { this(new HashSet<>(list), updated, delay, cooldown, threshold, false); }
+    public AbuseIpdbChecker(List<String> list, long updated, long delay, long cooldown, int threshold, boolean autoReport) { this(new HashSet<>(list), updated, delay, cooldown, threshold, autoReport); }
+    public AbuseIpdbChecker(HashSet<String> list, long updated, long delay, long cooldown, int threshold) { this(list, updated, delay, cooldown, threshold, false); }
+    public AbuseIpdbChecker(HashSet<String> list, long updated, long delay, long cooldown, int threshold, boolean autoReport) {
+        blacklist = Set.copyOf(list);
+        lastUpdated = updated;
+        updateDelay = delay;
+        reportCooldown = cooldown;
+        abuseConfidenceThreshold = threshold;
+        this.autoReport = autoReport;
         key = loadKey();
-        this.lastUpdated = lastUpdated;
-        this.updateDelay = updateDelay;
-        this.greylist = new HashSet<>();
-        this.reportTimes = new ConcurrentHashMap<>();
-        this.reportCooldown = reportCooldown;
-        this.abuseConfidenceThreshold = abuseConfidenceThreshold;
-    }
-
-    /**
-     *
-     * @return {@code true} if the ip is considered abusive.
-     */
-    private boolean checkIpRemotely(String ip) {
-        lock.readLock().lock();
-        try {
-            if (key == null) return false;
-        } finally {
-            lock.readLock().unlock();
-        }
-        lock.writeLock().lock();
-        try {
-            if (key == null) return false;
-            DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                    .uri(URI.create(String.format("https://api.abuseipdb.com/api/v2/check?ipAddress=%s", ip)))
-                    .GET()
-                    .setHeader("Key", key)
-                    .setHeader("Accept", "application/json")
-                    .timeout(Duration.of(5, TimeUnit.SECONDS.toChronoUnit()))
-                    .build(), HttpResponse.BodyHandlers.ofString());
-
-            if (request.isSuccess()) {
-                HttpResponse<String> response = request.getOrThrow();
-                JsonObject json = JsonParser.parseString(response.body()).getAsJsonObject();
-                int abuseScore = json.get("data").getAsJsonObject().get("abuseConfidenceScore").getAsInt();
-                if (abuseScore > abuseConfidenceThreshold) {
-                    blacklist.add(ip);
-                    return true;
-                } else {
-                    greylist.add(ip);
-                    return false;
-                }
-            } else {
-                //? if >1.20.5 {
-                if (request.hasResultOrPartial()) {
-                    HttpResponse<String> response = request.getPartialOrThrow();
-                //? } else {
-                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
-                if (partial.isPresent()) {
-                    HttpResponse<String> response = partial.get();
-                *///? }
-                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
-                            response.statusCode(),
-                            response.body());
-                } else {
-                    Antiscan.LOGGER.warn("Failed to load ip status from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
-                }
-                return false;
-            }
-        } finally {
-            lock.writeLock().unlock();
-        }
-    }
-
-    public int getAbuseConfidenceThreshold() {
-        return abuseConfidenceThreshold;
     }
 
     protected static @Nullable String loadKey() {
@@ -203,202 +102,174 @@ public class AbuseIpdbChecker implements ConnectionChecker {
         return null;
     }
 
-    public CompletableFuture<Boolean> report(String ip, Executor executor) {
-        return CompletableFuture.supplyAsync(() -> reportNow(ip), executor);
-    }
-
-    @SuppressWarnings("unused")
-    public CompletableFuture<Boolean> report(Connection connection, Executor executor) {
-        return CompletableFuture.supplyAsync(() -> reportNow(connection), executor);
-    }
-
-    public long getReportCooldown() {
-        return reportCooldown;
-    }
-
-    public boolean reportNow(Connection connection) {
-        if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
-            return reportNow(socketAddress.getAddress().getHostAddress());
-        }
-        return false;
-    }
-
-    /**
-     * @return A {@link CompletableFuture} containing {@link VerificationStatus#FAIL} or
-     * {@link VerificationStatus#PASS}. Must not return any other status.
-     */
     @Override
-    public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
-        CompletableFuture.runAsync(this::updateIfNeeded, executor);
-        if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
-            String ip = socketAddress.getAddress().getHostAddress();
-            return CompletableFuture.supplyAsync(() -> {
-                lock.readLock().lock();
-                try {
-                    if (blacklist.contains(ip)) return VerificationStatus.FAIL; // Quick check
-                    if (greylist.contains(ip)) return VerificationStatus.PASS;
-                } finally {
-                    lock.readLock().unlock();
-                }
-                lock.writeLock().lock(); // We have no cache, check remote and write results
-                try {
-                    // Must also double-check state, in case state has changed while upgrading locks
-                    if (blacklist.contains(ip))
-                        return VerificationStatus.FAIL; // Writing is exclusive, we can read while writing.
-                    if (greylist.contains(ip)) return VerificationStatus.PASS;
-                    if (checkIpRemotely(ip)) {
-                        blacklist.add(ip);
-                        return VerificationStatus.FAIL;
-                    } else {
-                        greylist.add(ip);
-                        return VerificationStatus.PASS;
-                    }
-                } finally {
-                    lock.writeLock().unlock();
-                }
-            }, executor);
+    public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String name, Executor ignored) {
+        if (connection.getRemoteAddress() instanceof InetSocketAddress socket && socket.getAddress() != null) {
+            String ip = socket.getAddress().getHostAddress();
+            long now = System.currentTimeMillis();
+            if (FeedLimits.fresh(lastUpdated, now) && blacklist.contains(ip)) return CompletableFuture.completedFuture(VerificationStatus.FAIL);
+            Cached found = cache.get(ip);
+            if (found != null && found.expires > now) return CompletableFuture.completedFuture(found.abusive ? VerificationStatus.FAIL : VerificationStatus.PASS);
+            if (key != null && now >= retryAfter.getOrDefault(ip, 0L)) BackgroundTasks.submit("abuse:" + ip, () -> lookupNow(ip));
         }
         return CompletableFuture.completedFuture(VerificationStatus.PASS);
     }
 
-    /**
-     * @return {@code true} if reported successfully or on cooldown, {@code false} otherwise
-     */
-    public boolean reportNow(String ip) {
-        lock.readLock().lock();
+    protected void lookupNow(String ip) {
+        if (!reserve(false, null, false)) { retry(ip); return; } // cooldown stops re-queueing while budget/backoff blocks
+        var result = Utils.sendHttpRequest(request("https://api.abuseipdb.com/api/v2/check?ipAddress=" + URLEncoder.encode(ip, StandardCharsets.UTF_8))
+                .GET().build(), Utils.boundedBody());
+        if (!result.isSuccess()) { failure(result); retry(ip); return; }
         try {
-            if (key == null) return false;
-            long time = System.currentTimeMillis();
-            AtomicBoolean shouldReport = new AtomicBoolean(false);
-            reportTimes.compute(ip, (ipKey, prevTime) -> {
-                if (prevTime == null || System.currentTimeMillis() > prevTime + TimeUnit.SECONDS.toMillis(reportCooldown)) {
-                    shouldReport.set(true);
-                    return time;
-                }
-                return prevTime;
-            });
-            if (shouldReport.get()) {
-                Antiscan.LOGGER.info("Reporting {} to AbuseIpdb", ip);
-                DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                        .uri(URI.create("https://api.abuseipdb.com/api/v2/report"))
-                        .POST(HttpRequest.BodyPublishers.ofString(
-                                String.format("ip=%s&categories=%s&comment=%s",
-                                        URLEncoder.encode(ip, StandardCharsets.UTF_8),
-                                        URLEncoder.encode("14", StandardCharsets.UTF_8), // Category: port scanning
-                                        URLEncoder.encode("Port scan to Minecraft server.", StandardCharsets.UTF_8))))
-                        .setHeader("Key", key)
-                        .setHeader("Accept", "application/json")
-                        .setHeader("Content-Type", "application/x-www-form-urlencoded")
-                        .build(), HttpResponse.BodyHandlers.ofString());
-
-                if (request.isSuccess()) return true;
-                //? if >1.20.5 {
-                if (request.hasResultOrPartial()) {
-                    HttpResponse<String> response = request.getPartialOrThrow();
-                //? } else {
-                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
-                if (partial.isPresent()) {
-                    HttpResponse<String> response = partial.get();
-                    *///? }
-                    Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB. Status code: {}", response.statusCode());
-                    return false;
-                }
-                Antiscan.LOGGER.warn("Failed to report IP to AbuseIPDB.");
-                return false;
+            var scoreElement = JsonParser.parseString(result.getOrThrow().body()).getAsJsonObject()
+                    .getAsJsonObject("data").get("abuseConfidenceScore");
+            if (!scoreElement.isJsonPrimitive() || !scoreElement.getAsJsonPrimitive().isNumber()) throw new IllegalArgumentException("Invalid score");
+            int score = Integer.parseInt(scoreElement.getAsString());
+            if (score < 0 || score > 100) throw new IllegalArgumentException("Invalid score");
+            synchronized (cache) {
+                if (cache.size() >= CACHE_LIMIT) cache.keySet().stream().findFirst().ifPresent(cache::remove);
+                cache.put(ip, new Cached(score > abuseConfidenceThreshold, System.currentTimeMillis() + TimeUnit.HOURS.toMillis(1)));
             }
-            return true;
-        } finally {
-            lock.readLock().unlock();
+            retryAfter.remove(ip);
+        } catch (RuntimeException e) { retry(ip); }
+    }
+
+    private void retry(String ip) {
+        synchronized (retryAfter) {
+            if (retryAfter.size() >= CACHE_LIMIT) retryAfter.keySet().stream().findFirst().ifPresent(retryAfter::remove);
+            retryAfter.put(ip, System.currentTimeMillis() + TimeUnit.MINUTES.toMillis(5));
         }
     }
 
-    private List<String> exportBlacklist() {
-        lock.readLock().lock();
+    public boolean updateIfNeeded() {
+        long now = System.currentTimeMillis();
+        if (key == null || now < nextRefresh || now < lastUpdated + TimeUnit.SECONDS.toMillis(Math.max(60, updateDelay))) return true;
+        nextRefresh = now + TimeUnit.MINUTES.toMillis(15);
+        if (!reserve(false, null, true)) return false;
+        var result = Utils.sendHttpRequest(request("https://api.abuseipdb.com/api/v2/blacklist?confidenceMinimum=" + abuseConfidenceThreshold)
+                .setHeader("Accept", "text/plain").GET().build(), Utils.boundedBody());
+        if (!result.isSuccess()) { failure(result); return false; }
         try {
-            return new LinkedList<>(blacklist);
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    private long getLastUpdated() {
-        lock.readLock().lock();
-        try {
-            return lastUpdated;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    @Override
-    public ConnectionCheckerType<?> getType() {
-        return ConnectionCheckers.ABUSE_IPDB;
-    }
-
-    private long getUpdateDelay() {
-        lock.readLock().lock();
-        try {
-            return updateDelay;
-        } finally {
-            lock.readLock().unlock();
-        }
-    }
-
-    /**
-     * @return Success
-     */
-    @SuppressWarnings("UnusedReturnValue")
-    protected boolean updateIfNeeded() {
-        lock.readLock().lock();
-        try {
-            if (key == null || System.currentTimeMillis() < lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
-                return true;
-            }
-        } finally {
-            lock.readLock().unlock();
-        }
-        // Time to promote
-        lock.writeLock().lock();
-        try {
-            // May have changed since promoting lock
-            if (key == null || System.currentTimeMillis() < lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
-                return true;
-            }
-            greylist.clear();
-            blacklist.clear();
-
+            Set<String> replacement = FeedLimits.parseIps(result.getOrThrow().body());
+            blacklist = replacement;
             lastUpdated = System.currentTimeMillis();
-            DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                    .uri(URI.create("https://api.abuseipdb.com/api/v2/blacklist?confidenceMinimum=90"))
-                    .GET()
-                    .setHeader("Key", key)
-                    .setHeader("Accept", "text/plain")
-                    .build(), HttpResponse.BodyHandlers.ofString());
-            if (request.isSuccess()) {
-                HttpResponse<String> response = request.getOrThrow();
-                blacklist.addAll(Arrays.asList(response.body().split("\n")));
-                Antiscan.LOGGER.info("Updated IP blacklist from AbuseIPDB.");
-                return true;
-            } else {
-                //? if >1.20.5 {
-                if (request.hasResultOrPartial()) {
-                    HttpResponse<String> response = request.getPartialOrThrow();
-                //? } else {
-                /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
-                if (partial.isPresent()) {
-                    HttpResponse<String> response = partial.get();
-                *///? }
-                    Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB - got a non-2xx status code: {}. Response: {}",
-                            response.statusCode(),
-                            response.body());
-                } else {
-                    Antiscan.LOGGER.warn("Failed to load ip blacklist from AbuseIPDB. Reason: {}", request.error().orElseThrow().message());
-                }
-                return false;
-            }
-        } finally {
-            lock.writeLock().unlock();
+            Antiscan.LOGGER.info("Updated AbuseIPDB blacklist ({} IPs).", replacement.size());
+            return true;
+        } catch (RuntimeException e) {
+            Antiscan.LOGGER.warn("Malformed AbuseIPDB feed; retaining last good data");
+            return false;
         }
     }
 
+    private HttpRequest.Builder request(String uri) {
+        return HttpRequest.newBuilder(URI.create(uri)).timeout(Duration.ofSeconds(5))
+                .setHeader("Key", Objects.requireNonNull(key)).setHeader("Accept", "application/json");
+    }
+
+    private void failure(com.mojang.serialization.DataResult<HttpResponse<String>> result) {
+        long delay = TimeUnit.MINUTES.toMillis(5);
+        var partial = result.resultOrPartial();
+        long logNow = System.currentTimeMillis();
+        if (logNow - lastFailureLog >= TimeUnit.MINUTES.toMillis(1)) { // don't repeat this for every queued lookup
+            lastFailureLog = logNow;
+            Antiscan.LOGGER.warn("AbuseIPDB request failed ({}); pausing requests for a while.",
+                    partial.map(r -> "HTTP " + r.statusCode()).orElse("no response"));
+        }
+        if (partial.isPresent()) {
+            HttpResponse<String> response = partial.get();
+            if (response.statusCode() == 429) {
+                delay = TimeUnit.HOURS.toMillis(1);
+                try {
+                    String header = response.headers().firstValue("Retry-After").orElse("");
+                    long parsed;
+                    try { parsed = TimeUnit.SECONDS.toMillis(Long.parseLong(header)); }
+                    catch (NumberFormatException e) { parsed = java.time.ZonedDateTime.parse(header, java.time.format.DateTimeFormatter.RFC_1123_DATE_TIME).toInstant().toEpochMilli() - System.currentTimeMillis(); }
+                    delay = Math.max(delay, Math.min(TimeUnit.DAYS.toMillis(1), parsed));
+                } catch (RuntimeException ignored) { }
+            }
+        }
+        synchronized (this) {
+            blockedUntil = Math.max(blockedUntil, System.currentTimeMillis() + delay);
+            persistLedger();
+        }
+    }
+
+    // Reservation is persisted before HTTP; a failed request still consumes its conservative budget.
+    private synchronized boolean reserve(boolean report, @Nullable String ip, boolean bulk) {
+        loadLedger();
+        if (!ledgerValid || key == null) return false;
+        long now = System.currentTimeMillis();
+        if (now < blockedUntil) return false;
+        long today = now / TimeUnit.DAYS.toMillis(1);
+        if (day != today) { day = today; requests = 0; reports = 0; blacklistRequests = 0; }
+        reportTimes.values().removeIf(time -> now - time >= TimeUnit.SECONDS.toMillis(Math.max(0, reportCooldown)));
+        if (report) {
+            if (reportTimes.containsKey(ip) || reports >= DAILY_REPORTS || reportTimes.size() >= CACHE_LIMIT) return false;
+            reportTimes.put(ip, now);
+            reports++;
+        } else {
+            if (requests >= DAILY_CHECKS || (bulk && blacklistRequests >= 5)) return false;
+            requests++;
+            if (bulk) blacklistRequests++;
+        }
+        return persistLedger();
+    }
+
+    private void loadLedger() {
+        if (ledgerLoaded) return;
+        ledgerLoaded = true;
+        if (!Files.exists(ledger)) return;
+        try {
+            if (Files.size(ledger) > 1024 * 1024) throw new IOException("Oversized ledger");
+            JsonObject json = JsonParser.parseString(Files.readString(ledger)).getAsJsonObject();
+            day = json.get("day").getAsLong(); requests = json.get("requests").getAsLong(); reports = json.get("reports").getAsLong();
+            blockedUntil = json.get("blockedUntil").getAsLong();
+            blacklistRequests = json.has("blacklistRequests") ? json.get("blacklistRequests").getAsLong() : 5;
+            if (day < 0 || requests < 0 || reports < 0 || blacklistRequests < 0 || blockedUntil < 0 || json.getAsJsonObject("reportTimes").size() > CACHE_LIMIT)
+                throw new IOException("Invalid budget state");
+            for (var entry : json.getAsJsonObject("reportTimes").entrySet()) reportTimes.put(entry.getKey(), entry.getValue().getAsLong());
+        } catch (IOException | RuntimeException e) {
+            ledgerValid = false;
+            Antiscan.LOGGER.warn("AbuseIPDB ledger unreadable; remote requests disabled to avoid resetting quotas", e);
+        }
+    }
+
+    private boolean persistLedger() {
+        JsonObject json = new JsonObject();
+        json.addProperty("day", day); json.addProperty("requests", requests); json.addProperty("reports", reports); json.addProperty("blockedUntil", blockedUntil);
+        json.addProperty("blacklistRequests", blacklistRequests);
+        JsonObject times = new JsonObject(); reportTimes.forEach(times::addProperty); json.add("reportTimes", times);
+        try { Utils.atomicWrite(ledger, json.toString()); return true; }
+        catch (IOException e) { Antiscan.LOGGER.warn("Unable to save AbuseIPDB budget; request suppressed", e); return false; }
+    }
+
+    void useLedger(Path file) { ledger = file; }
+    public CompletableFuture<Boolean> report(String ip, Executor executor) { return CompletableFuture.supplyAsync(() -> reportNow(ip), executor); }
+    public CompletableFuture<Boolean> report(Connection connection, Executor executor) { return CompletableFuture.supplyAsync(() -> reportNow(connection), executor); }
+    /** Called when a fail_report entry matched. Reports in the background, but only if the owner turned auto_report on. */
+    public void onFailReport(String ip) {
+        if (autoReport) BackgroundTasks.submit("report:" + ip, () -> reportNow(ip));
+    }
+    public boolean reportNow(Connection connection) {
+        return connection.getRemoteAddress() instanceof InetSocketAddress socket && socket.getAddress() != null && reportNow(socket.getAddress().getHostAddress());
+    }
+    public boolean reportNow(String ip) {
+        try { ip = InetAddresses.forString(ip).getHostAddress(); }
+        catch (IllegalArgumentException e) { return false; }
+        if (!reserve(true, ip, false)) return false;
+        var result = Utils.sendHttpRequest(request("https://api.abuseipdb.com/api/v2/report")
+                .setHeader("Content-Type", "application/x-www-form-urlencoded")
+                .POST(HttpRequest.BodyPublishers.ofString("ip=" + URLEncoder.encode(ip, StandardCharsets.UTF_8)
+                        + "&categories=14&comment=Port%20scan%20to%20Minecraft%20server."))
+                .build(), Utils.boundedBody());
+        if (!result.isSuccess()) failure(result);
+        return result.isSuccess();
+    }
+    private List<String> exportBlacklist() { return List.copyOf(blacklist); }
+    private long getLastUpdated() { return lastUpdated; }
+    private long getUpdateDelay() { return updateDelay; }
+    public long getReportCooldown() { return reportCooldown; }
+    public int getAbuseConfidenceThreshold() { return abuseConfidenceThreshold; }
+    public boolean isAutoReport() { return autoReport; }
+    @Override public ConnectionCheckerType<?> getType() { return ConnectionCheckers.ABUSE_IPDB; }
 }

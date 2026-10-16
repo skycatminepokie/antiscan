@@ -16,18 +16,18 @@ import net.minecraft.server.permissions.PermissionLevel;
 import net.minecraft.util.CommonColors;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.Executors;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
 public class AntiscanCommands {
-    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor((runnable) -> {
+    private static final java.util.concurrent.ThreadPoolExecutor EXECUTOR = new java.util.concurrent.ThreadPoolExecutor(
+            1, 1, 0, java.util.concurrent.TimeUnit.SECONDS, new java.util.concurrent.ArrayBlockingQueue<>(64), runnable -> {
         Thread thread = new Thread(runnable, "Antiscan command executor thread");
         thread.setDaemon(true);
         return thread;
     });
+    public static void stop() { EXECUTOR.shutdownNow(); }
     public static final int PARTIAL_LIST_SIZE = 25;
 
     public static void registerCommands(CommandDispatcher<CommandSourceStack> dispatcher,

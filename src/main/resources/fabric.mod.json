@@ -3,7 +3,7 @@
   "id": "${id}",
   "version": "${version}",
   "name": "${name}",
-  "description": "Check IPs against AbuseIPDB before admitting people to your server.",
+  "description": "Block port scanners using Hunter and AbuseIPDB.",
   "authors": [
     "skycatminepokie"
   ],

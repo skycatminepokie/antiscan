@@ -60,7 +60,7 @@ public class VerificationList implements ConnectionChecker {
     @Override
     public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
         if (isIpList) {
-            if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
+            if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress && socketAddress.getAddress() != null) {
                 return CompletableFuture.supplyAsync(() -> {
                     synchronized (list) {
                         if (list.contains(socketAddress.getAddress().getHostAddress())) {
@@ -109,6 +109,10 @@ public class VerificationList implements ConnectionChecker {
         synchronized (list) {
             list.clear();
         }
+    }
+
+    protected void replaceAll(Collection<String> replacement) {
+        synchronized (list) { list.clear(); list.addAll(replacement); }
     }
 
     public void addAll(Collection<String> toAdd) {

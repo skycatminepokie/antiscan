@@ -4,6 +4,7 @@ import com.skycatdev.antiscan.api.ConnectionChecker;
 import com.skycatdev.antiscan.api.VerificationStatus;
 import com.skycatdev.antiscan.impl.AntiscanCommands;
 import com.skycatdev.antiscan.impl.Config;
+import com.skycatdev.antiscan.impl.BackgroundTasks;
 import com.skycatdev.antiscan.impl.checker.ConnectionCheckers;
 import com.skycatdev.antiscan.impl.checker.LocalChecker;
 import com.skycatdev.antiscan.impl.checker.MultiChecker;
@@ -22,7 +23,6 @@ import java.io.File;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
 public class Antiscan implements DedicatedServerModInitializer {
     public static final String MOD_ID = "antiscan";
@@ -30,19 +30,7 @@ public class Antiscan implements DedicatedServerModInitializer {
     @SuppressWarnings("unused") public static final String VERSION = /*$ mod_version*/ "2.0.0";
     @SuppressWarnings("unused") public static final String MINECRAFT = /*$ minecraft*/ "26.3";
     public static final Path SAVE_DIRECTORY = FabricLoader.getInstance().getGameDir().resolve("antiscan");
-    public static final Config CONFIG = Config.load();
-    /**
-     * This checker runs first.
-     */
-    private static final ConnectionChecker CHECKER_BATCH_1 = new MultiChecker(List.of(
-            LocalChecker.INSTANCE,
-            CONFIG.ipWhitelist(),
-            CONFIG.ipBlacklist(),
-            CONFIG.nameWhitelist(),
-            CONFIG.nameBlacklist(),
-            CONFIG.hunterChecker()
-    ));
-
+    public static final Config CONFIG;
     static {
         File saveDirFile = SAVE_DIRECTORY.toFile();
         if (!saveDirFile.exists()) {
@@ -58,7 +46,20 @@ public class Antiscan implements DedicatedServerModInitializer {
                 throw new RuntimeException("Antiscan save directory is not a directory!");
             }
         }
+        CONFIG = Config.load();
     }
+
+    /**
+     * This checker runs first.
+     */
+    private static final ConnectionChecker CHECKER_BATCH_1 = new MultiChecker(List.of(
+            LocalChecker.INSTANCE,
+            CONFIG.ipWhitelist(),
+            CONFIG.ipBlacklist(),
+            CONFIG.nameWhitelist(),
+            CONFIG.nameBlacklist(),
+            CONFIG.hunterChecker()
+    ));
 
     public static Identifier locate(String path) {
         //? if <1.21 {
@@ -71,45 +72,49 @@ public class Antiscan implements DedicatedServerModInitializer {
     public void onInitializeServer() {
         ConnectionCheckers.init();
         CommandRegistrationCallback.EVENT.register(AntiscanCommands::registerCommands);
-        ServerLifecycleEvents.SERVER_STOPPING.register(server -> CONFIG.trySave());
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            BackgroundTasks.start(() -> {
+                CONFIG.hunterChecker().updateIfNeeded();
+                CONFIG.abuseIpdbChecker().updateIfNeeded();
+            });
+        });
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            BackgroundTasks.stop();
+            AntiscanCommands.stop();
+            CONFIG.trySave();
+        });
         ServerLifecycleEvents.AFTER_SAVE.register((server, flush, force) -> CONFIG.trySave());
     }
 
-    /**
-     * Warning: blocking
-     */
+    /** Immediate local/cache decision; unknown remote reputation is allowed on this connection. */
     public static void handleConnection(Connection connection, @Nullable String name, Runnable allow) {
-        Antiscan.LOGGER.debug("Checking connection...");
-        try {
-            VerificationStatus status = CHECKER_BATCH_1.check(connection, name, Runnable::run).get();
-            switch (status) {
-                case SUCCEED -> allow.run();
-                case FAIL -> { // abuseIpdbChecker is not allowed to succeed. Therefore, FAIL is the end result.
-                    onBlocked(connection, name);
-                    connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
-                }
-                case FAIL_REPORT -> { // abuseIpdbChecker is not allowed to succeed. Therefore, FAIL_REPORT is the end result.
-                    onBlocked(connection, name);
-                    connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
-                    CONFIG.abuseIpdbChecker().reportNow(connection);
-                }
-                case PASS -> {
-                    status = CONFIG.abuseIpdbChecker().check(connection, name, Runnable::run).get();
-                    if (status == VerificationStatus.FAIL) {
-                        onBlocked(connection, name);
-                        connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
-                    } else {
-                        allow.run();
-                    }
-                }
-            }
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.warn("Failed to check connection.", e);
-            allow.run();
+        VerificationStatus status = CHECKER_BATCH_1.check(connection, name, Runnable::run).join();
+        if (status == VerificationStatus.SUCCEED) { allow.run(); return; }
+        boolean blocked = status == VerificationStatus.FAIL || status == VerificationStatus.FAIL_REPORT;
+        if (status == VerificationStatus.FAIL_REPORT
+                && connection.getRemoteAddress() instanceof InetSocketAddress socket && socket.getAddress() != null) {
+            CONFIG.abuseIpdbChecker().onFailReport(socket.getAddress().getHostAddress());
         }
+        if (!blocked) blocked = CONFIG.abuseIpdbChecker().check(connection, name, Runnable::run).join() == VerificationStatus.FAIL;
+        if (blocked) {
+            onBlocked(connection, name);
+            connection.disconnect(Component.translatable("multiplayer.disconnect.generic"));
+        } else allow.run();
     }
 
+    private static final java.util.concurrent.atomic.AtomicLong LAST_LOG = new java.util.concurrent.atomic.AtomicLong();
+    private static final java.util.concurrent.atomic.AtomicInteger SUPPRESSED = new java.util.concurrent.atomic.AtomicInteger();
+
     private static void onBlocked(Connection connection, @Nullable String name) {
+        // At most one detailed line per second; the rest are counted so floods don't flood the log.
+        long now = System.nanoTime(), last = LAST_LOG.get(); // nanoTime: immune to wall-clock jumps
+        if (now - last < 1_000_000_000L && last != 0 || !LAST_LOG.compareAndSet(last, now)) {
+            SUPPRESSED.incrementAndGet();
+            LOGGER.debug("Blocking connection from {} (log sampled)", connection.getRemoteAddress());
+            return;
+        }
+        int skipped = SUPPRESSED.getAndSet(0);
+        if (skipped > 0) Antiscan.LOGGER.info("Blocked {} more connections since the last log line.", skipped);
         if (connection.getRemoteAddress() instanceof InetSocketAddress socketAddress) {
             if (name == null) {
                 Antiscan.LOGGER.info("Blocking connection from {}.", socketAddress.getAddress().getHostAddress());

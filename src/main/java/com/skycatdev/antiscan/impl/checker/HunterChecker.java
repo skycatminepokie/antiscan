@@ -1,24 +1,20 @@
 package com.skycatdev.antiscan.impl.checker;
 
 import com.mojang.serialization.Codec;
-import com.mojang.serialization.DataResult;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import com.skycatdev.antiscan.Antiscan;
 import com.skycatdev.antiscan.api.ConnectionCheckerType;
 import com.skycatdev.antiscan.api.VerificationStatus;
+import com.skycatdev.antiscan.impl.FeedLimits;
 import com.skycatdev.antiscan.impl.Utils;
 import net.minecraft.network.Connection;
 import org.jspecify.annotations.Nullable;
 
 import java.net.URI;
 import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
-//? if <=1.20.5
-//import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
@@ -36,17 +32,14 @@ public class HunterChecker extends VerificationList {
     ).apply(instance, HunterChecker::new));
     public static final String HUNTER_URL = "https://raw.githubusercontent.com/pebblehost/hunter/refs/heads/master/ips.txt";
     /**
-     * Locks updateDelay, lastUpdated, and updating from Hunter as a whole.
-     */
-    protected final Object updateLock = new Object[]{};
-    /**
      * The minimum number of seconds between each update.
      */
-    private long updateDelay;
+    private final long updateDelay;
     /**
      * The millisecond (since epoch) when the list was updated
      */
-    private long lastUpdated;
+    private volatile long lastUpdated;
+    private long nextAttempt;
 
     public HunterChecker() {
         this(new HashSet<>(), DEFAULT_LAST_UPDATED, DEFAULT_UPDATE_DELAY);
@@ -64,17 +57,12 @@ public class HunterChecker extends VerificationList {
 
     @Override
     public CompletableFuture<VerificationStatus> check(Connection connection, @Nullable String playerName, Executor executor) {
-        CompletableFuture.runAsync(this::updateIfNeeded, executor);
+        if (!FeedLimits.fresh(lastUpdated, System.currentTimeMillis())) return CompletableFuture.completedFuture(VerificationStatus.PASS);
         return super.check(connection, playerName, executor);
     }
 
-    /**
-     * Warning: this is blocking. It will mostly be blocked only while updating.
-     */
     public long getLastUpdated() {
-        synchronized (updateLock) {
-            return lastUpdated;
-        }
+        return lastUpdated;
     }
 
     @Override
@@ -83,9 +71,7 @@ public class HunterChecker extends VerificationList {
     }
 
     private long getUpdateDelay() {
-        synchronized (updateLock) {
-            return updateDelay;
-        }
+        return updateDelay;
     }
 
     /**
@@ -93,47 +79,29 @@ public class HunterChecker extends VerificationList {
      * @return Success
      */
     @SuppressWarnings("UnusedReturnValue")
-    protected boolean updateIfNeeded() {
-        synchronized (updateLock) {
-            if (System.currentTimeMillis() > lastUpdated + TimeUnit.SECONDS.toMillis(updateDelay)) {
-                return updateNow();
-            }
-        }
-        return true;
+    public boolean updateIfNeeded() {
+        long now = System.currentTimeMillis();
+        if (now < nextAttempt || now < lastUpdated + TimeUnit.SECONDS.toMillis(Math.max(60, updateDelay))) return true;
+        nextAttempt = now + TimeUnit.MINUTES.toMillis(15);
+        return updateNow();
     }
 
     protected boolean updateNow() {
-        DataResult<HttpResponse<String>> request = Utils.sendHttpRequest(HttpRequest.newBuilder()
-                .uri(URI.create(HUNTER_URL))
-                .GET()
-                .build(), HttpResponse.BodyHandlers.ofString());
-        // https://curlconverter.com/java/
-        if (request.isSuccess()) {
-            HttpResponse<String> response = request.getOrThrow();
-            clear();
-            // There is a brief time here where the list is empty. I don't think it really matters that much.
-            addAll(Arrays.asList(response.body().split("\n")));
-            synchronized (updateLock) {
-                lastUpdated = System.currentTimeMillis();
-            }
-            Antiscan.LOGGER.info("Updated IP blacklist from Hunter.");
+        var request = Utils.sendHttpRequest(HttpRequest.newBuilder(URI.create(HUNTER_URL))
+                .timeout(java.time.Duration.ofSeconds(10)).GET().build(), Utils.boundedBody());
+        if (!request.isSuccess()) {
+            Antiscan.LOGGER.warn("Hunter list download failed ({}); keeping the last good list.",
+                    request.resultOrPartial().map(r -> "HTTP " + r.statusCode()).orElse("no response"));
+            return false;
+        }
+        try {
+            var replacement = FeedLimits.parseIps(request.getOrThrow().body());
+            replaceAll(replacement);
+            lastUpdated = System.currentTimeMillis();
+            Antiscan.LOGGER.info("Updated Hunter IP list ({} IPs).", replacement.size());
             return true;
-        } else {
-            //? if >1.20.5 {
-            if (request.hasResultOrPartial()) {
-                HttpResponse<String> response = request.getPartialOrThrow();
-            //? } else {
-            /*Optional<HttpResponse<String>> partial = request.resultOrPartial();
-            if (partial.isPresent()) {
-                HttpResponse<String> response = partial.get();
-            *///? }
-                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter - got a non-2xx status code: {}. Response: {}",
-                        response.statusCode(),
-                        response.body());
-            } else {
-                Antiscan.LOGGER.warn("Failed to load ip blacklist from hunter. This is NOT a fatal error. Reason: {}",
-                        request.error().orElseThrow().message());
-            }
+        } catch (RuntimeException e) {
+            Antiscan.LOGGER.warn("Malformed Hunter feed; retaining last good data");
             return false;
         }
     }

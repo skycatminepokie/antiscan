@@ -45,4 +45,6 @@ versions/*/logs
 # antiscan
 **/antiscan-key-do-not-share.txt
 **/antiscan2.json
+**/antiscan2.json.tmp
+**/antiscan/abuse-budget.json*
 **/.pid*
